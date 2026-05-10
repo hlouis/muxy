@@ -8,7 +8,7 @@ import Foundation
 ///
 /// Non-Mermaid fenced code blocks are left inside the returned `.markdown` blocks unchanged.
 enum NativeMarkdownDocumentParser {
-    enum Block: Equatable {
+    enum Block: Equatable, Sendable {
         case markdown(String)
         /// Mermaid diagram source (contents inside the fence, excluding the fence lines).
         case mermaid(String)
@@ -25,7 +25,7 @@ enum NativeMarkdownDocumentParser {
     ///
     /// This is used by the native markdown preview to map rendered blocks back onto
     /// `MarkdownSyncAnchor` IDs for scroll sync.
-    struct SpannedBlock: Equatable, Identifiable {
+    struct SpannedBlock: Equatable, Sendable, Identifiable {
         let id: Int
         let block: Block
         let startLine: Int
@@ -277,7 +277,8 @@ enum NativeMarkdownDocumentParser {
         // The rest must be whitespace only.
         while idx < line.endIndex {
             let ch = line[idx]
-            if ch == " " || ch == "\t" { idx = line.index(after: idx)
+            if ch == " " || ch == "\t" {
+                idx = line.index(after: idx)
                 continue
             }
             return false

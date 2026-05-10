@@ -73,6 +73,7 @@ struct NativeMermaidBlockView: View {
                     ProgressView()
                         .controlSize(.small)
                 }
+
             }
             .frame(width: max(1, availableWidth), height: fittedDiagramHeight)
             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))

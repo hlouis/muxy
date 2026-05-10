@@ -7,7 +7,7 @@ import SwiftUI
 /// (used by the markdown scroll-sync coordinator).
 struct EnclosingNSScrollViewReader: NSViewRepresentable {
     var onResolve: (NSScrollView) -> Void
-    var onScroll: ((NSScrollView) -> Void)?
+    var onScroll: ((NSScrollView) -> Void)? = nil
 
     func makeNSView(context: Context) -> ResolverView {
         let view = ResolverView()
@@ -72,6 +72,7 @@ struct EnclosingNSScrollViewReader: NSViewRepresentable {
         }
 
         private func observeBoundsChanges(in scrollView: NSScrollView) {
+            NotificationCenter.default.removeObserver(self)
             scrollView.contentView.postsBoundsChangedNotifications = true
             scrollView.contentView.postsFrameChangedNotifications = true
             NotificationCenter.default.addObserver(
