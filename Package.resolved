@@ -1,6 +1,24 @@
 {
-  "originHash" : "066ab307b4a0e89ca1cb729d2423eb57ebcd8a19de8762c00940d2cb612c1569",
+  "originHash" : "67c89880e2043f5c811f348d0648b6b7c6767d75ebfea8f44d2ccdabc80c04f1",
   "pins" : [
+    {
+      "identity" : "beautiful-mermaid-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/lukilabs/beautiful-mermaid-swift",
+      "state" : {
+        "revision" : "bf0d09dcaf4c6080f779bae9e2375b1dbd528c04",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "elk-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/lukilabs/elk-swift",
+      "state" : {
+        "revision" : "32f8042e3509a4819f00ff9cd46e829ec2b26da0",
+        "version" : "1.0.2"
+      }
+    },
     {
       "identity" : "sentry-cocoa",
       "kind" : "remoteSourceControl",
@@ -17,6 +35,15 @@
       "state" : {
         "revision" : "066e75a8b3e99962685d6a90cdd5293ebffd9261",
         "version" : "2.9.1"
+      }
+    },
+    {
+      "identity" : "swift-markdown-ui",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/gonzalezreal/swift-markdown-ui",
+      "state" : {
+        "revision" : "4392c3cefd08db10f13ffb019d7c7a4a622824f5",
+        "version" : "2.0.2"
       }
     },
     {

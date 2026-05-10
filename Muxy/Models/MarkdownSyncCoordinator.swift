@@ -27,6 +27,8 @@ final class MarkdownSyncCoordinator {
     private var lastEditorInputScrollY: CGFloat?
     private var lastPreviewInputScrollTop: CGFloat?
 
+    private static let scrollTargetEpsilon: CGFloat = 0.5
+
     init(now: @escaping () -> TimeInterval = { CFAbsoluteTimeGetCurrent() }) {
         self.now = now
     }
@@ -42,7 +44,7 @@ final class MarkdownSyncCoordinator {
         }
 
         let target = map.previewScrollTop(forEditorScrollY: scrollY)
-        if let lastIssuedPreviewScrollTop, abs(target - lastIssuedPreviewScrollTop) < 0.5 {
+        if let lastIssuedPreviewScrollTop, abs(target - lastIssuedPreviewScrollTop) < Self.scrollTargetEpsilon {
             return Output()
         }
 
@@ -63,7 +65,7 @@ final class MarkdownSyncCoordinator {
         }
 
         let target = map.editorScrollY(forPreviewScrollTop: scrollTop)
-        if let lastIssuedEditorScrollY, abs(target - lastIssuedEditorScrollY) < 0.5 {
+        if let lastIssuedEditorScrollY, abs(target - lastIssuedEditorScrollY) < Self.scrollTargetEpsilon {
             return Output()
         }
 
@@ -81,11 +83,17 @@ final class MarkdownSyncCoordinator {
         case .editor:
             guard let lastEditorInputScrollY else { return Output() }
             let target = map.previewScrollTop(forEditorScrollY: lastEditorInputScrollY)
+            if let lastIssuedPreviewScrollTop, abs(target - lastIssuedPreviewScrollTop) < Self.scrollTargetEpsilon {
+                return Output()
+            }
             lastIssuedPreviewScrollTop = target
             return Output(requestPreviewScrollTop: target)
         case .preview:
             guard let lastPreviewInputScrollTop else { return Output() }
             let target = map.editorScrollY(forPreviewScrollTop: lastPreviewInputScrollTop)
+            if let lastIssuedEditorScrollY, abs(target - lastIssuedEditorScrollY) < Self.scrollTargetEpsilon {
+                return Output()
+            }
             lastIssuedEditorScrollY = target
             return Output(requestEditorScrollY: target)
         }

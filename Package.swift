@@ -13,6 +13,8 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.9.1"),
         .package(url: "https://github.com/jpsim/Yams", from: "5.1.0"),
+        .package(url: "https://github.com/gonzalezreal/swift-markdown-ui", exact: "2.0.2"),
+        .package(url: "https://github.com/lukilabs/beautiful-mermaid-swift", exact: "1.0.0"),
         .package(url: "https://github.com/getsentry/sentry-cocoa", from: "8.40.0"),
     ],
     targets: [
@@ -40,6 +42,8 @@ let package = Package(
                 "MuxyServer",
                 .product(name: "Sparkle", package: "Sparkle"),
                 .product(name: "Yams", package: "Yams"),
+                .product(name: "MarkdownUI", package: "swift-markdown-ui"),
+                .product(name: "BeautifulMermaid", package: "beautiful-mermaid-swift"),
                 .product(name: "Sentry", package: "sentry-cocoa"),
             ],
             path: "Muxy",
@@ -75,6 +79,9 @@ let package = Package(
                 .product(name: "Yams", package: "Yams"),
             ],
             path: "Tests/MuxyTests",
+            resources: [
+                .process("Fixtures"),
+            ],
             linkerSettings: [
                 .unsafeFlags([
                     "GhosttyKit.xcframework/macos-arm64_x86_64/ghostty-internal.a",

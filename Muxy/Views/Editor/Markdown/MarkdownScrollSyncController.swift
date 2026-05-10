@@ -60,7 +60,12 @@ final class MarkdownScrollSyncController {
         else { return }
 
         let map = state.currentMarkdownSyncMap()
-        let output = state.markdownSyncCoordinator.editorDidScroll(scrollY: state.markdownEditorScrollY, map: map)
+        let output: MarkdownSyncCoordinator.Output
+        if map.isEmpty {
+            output = fractionalPreviewSyncOutput()
+        } else {
+            output = state.markdownSyncCoordinator.editorDidScroll(scrollY: state.markdownEditorScrollY, map: map)
+        }
         guard !output.isEmpty else { return }
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
@@ -111,14 +116,41 @@ final class MarkdownScrollSyncController {
               let targetY = state.markdownEditorScrollRequestY
         else { return }
 
-        isApplyingScroll = true
         let visibleHeight = scrollView.contentView.bounds.height
         let documentHeight = scrollView.documentView?.bounds.height ?? 0
         let maxScrollY = max(0, documentHeight - visibleHeight)
         let clamped = min(max(0, targetY), maxScrollY)
+
+        let currentY = min(max(0, scrollView.contentView.bounds.origin.y), maxScrollY)
+        guard abs(currentY - clamped) >= 0.5 else {
+            updateEditorScrollMetrics()
+            return
+        }
+
+        isApplyingScroll = true
         scrollView.contentView.setBoundsOrigin(NSPoint(x: scrollView.contentView.bounds.origin.x, y: clamped))
         scrollView.reflectScrolledClipView(scrollView.contentView)
         refreshViewport()
         rebuildLineStartOffsets()
+
+        // `boundsDidChange` normally clears this flag synchronously. Keep a safety
+        // reset for no-notification edge cases so the next user scroll is not
+        // accidentally swallowed as an echo of a programmatic request.
+        let appliedRequestVersion = lastAppliedScrollRequestVersion
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.lastAppliedScrollRequestVersion == appliedRequestVersion else { return }
+            self.isApplyingScroll = false
+        }
+    }
+
+    private func fractionalPreviewSyncOutput() -> MarkdownSyncCoordinator.Output {
+        guard state.markdownEditorMaxScrollY > 0,
+              state.markdownPreviewMaxScrollTop > 0
+        else {
+            return MarkdownSyncCoordinator.Output()
+        }
+
+        let fraction = min(max(state.markdownEditorScrollY / state.markdownEditorMaxScrollY, 0), 1)
+        return MarkdownSyncCoordinator.Output(requestPreviewScrollTop: fraction * state.markdownPreviewMaxScrollTop)
     }
 }

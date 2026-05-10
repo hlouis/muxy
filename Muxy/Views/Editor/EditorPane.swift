@@ -139,8 +139,7 @@ struct EditorPane: View {
             if shouldDelayMarkdownPreview {
                 markdownPreviewLoadingView
             } else {
-                MarkdownWebView(
-                    html: renderedMarkdownHTML,
+                NativeMarkdownPreviewView(
                     content: renderedMarkdownContent,
                     filePath: state.filePath,
                     projectPath: state.projectPath,
@@ -154,7 +153,12 @@ struct EditorPane: View {
                         state.markdownPreviewMaxScrollTop = report.maxScrollTop
                         state.markdownPreviewViewportHeight = report.clientHeight
                         let map = state.currentMarkdownSyncMap()
-                        let output = state.markdownSyncCoordinator.previewDidScroll(scrollTop: report.scrollTop, map: map)
+                        let output: MarkdownSyncCoordinator.Output
+                        if map.isEmpty {
+                            output = nativePreviewFractionalSyncOutput(for: report)
+                        } else {
+                            output = state.markdownSyncCoordinator.previewDidScroll(scrollTop: report.scrollTop, map: map)
+                        }
                         state.applyMarkdownSyncOutput(output)
                     },
                     onLayoutChanged: {
@@ -164,6 +168,9 @@ struct EditorPane: View {
                     },
                     onAnchorGeometryChanged: { geometries in
                         state.markdownPreviewGeometries = geometries
+                        let map = state.currentMarkdownSyncMap()
+                        let output = state.markdownSyncCoordinator.reissueAfterRelayout(map: map)
+                        state.applyMarkdownSyncOutput(output)
                     },
                     onOpenInternalLink: { path, fragment in
                         guard let projectID = appState.activeProjectID else { return }
@@ -222,13 +229,21 @@ struct EditorPane: View {
         markdownPreviewFocused = true
     }
 
+    private func nativePreviewFractionalSyncOutput(for report: MarkdownPreviewScrollReport) -> MarkdownSyncCoordinator.Output {
+        guard usesMarkdownAnchorSync,
+              report.maxScrollTop > 0,
+              state.markdownEditorMaxScrollY > 0
+        else {
+            return MarkdownSyncCoordinator.Output()
+        }
+
+        let fraction = min(max(report.scrollTop / report.maxScrollTop, 0), 1)
+        return MarkdownSyncCoordinator.Output(requestEditorScrollY: fraction * state.markdownEditorMaxScrollY)
+    }
+
     private var renderedMarkdownContent: String {
         _ = state.previewRefreshVersion
         return state.backingStore?.fullText() ?? ""
-    }
-
-    private var renderedMarkdownHTML: String {
-        MarkdownRenderer.html(filePath: state.filePath)
     }
 
     private var markdownPalette: MarkdownRenderer.Palette {

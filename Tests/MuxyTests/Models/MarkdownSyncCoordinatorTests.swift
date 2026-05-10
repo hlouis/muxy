@@ -64,11 +64,36 @@ struct MarkdownSyncCoordinatorTests {
         let map = makeMap()
 
         _ = coordinator.editorDidScroll(scrollY: 50, map: map)
-        let output = coordinator.reissueAfterRelayout(map: map)
+        let changedMap = makeMap(middlePreviewY: 460)
+        let output = coordinator.reissueAfterRelayout(map: changedMap)
         #expect(output.requestPreviewScrollTop != nil)
     }
 
-    private func makeMap() -> MarkdownSyncMap {
+    @Test("relayout does not reissue unchanged targets")
+    @MainActor
+    func relayoutDoesNotReissueUnchangedTarget() {
+        let coordinator = MarkdownSyncCoordinator(now: { 0 })
+        let map = makeMap()
+
+        _ = coordinator.editorDidScroll(scrollY: 50, map: map)
+        let output = coordinator.reissueAfterRelayout(map: map)
+
+        #expect(output.isEmpty)
+    }
+
+    @Test("preview-driven relayout does not reissue unchanged targets")
+    @MainActor
+    func previewRelayoutDoesNotReissueUnchangedTarget() {
+        let coordinator = MarkdownSyncCoordinator(now: { 0 })
+        let map = makeMap()
+
+        _ = coordinator.previewDidScroll(scrollTop: 50, map: map)
+        let output = coordinator.reissueAfterRelayout(map: map)
+
+        #expect(output.isEmpty)
+    }
+
+    private func makeMap(previewMaxScrollY: CGFloat = 1000, middlePreviewY: CGFloat = 400) -> MarkdownSyncMap {
         let anchors = [
             MarkdownSyncAnchor(id: "a", kind: .heading, startLine: 1, endLine: 1),
             MarkdownSyncAnchor(id: "b", kind: .heading, startLine: 21, endLine: 21),
@@ -76,7 +101,7 @@ struct MarkdownSyncCoordinatorTests {
         ]
         let geometries = [
             MarkdownPreviewAnchorGeometry(anchorID: "a", startLine: 1, endLine: 1, top: 0, height: 30),
-            MarkdownPreviewAnchorGeometry(anchorID: "b", startLine: 21, endLine: 21, top: 400, height: 30),
+            MarkdownPreviewAnchorGeometry(anchorID: "b", startLine: 21, endLine: 21, top: middlePreviewY, height: 30),
             MarkdownPreviewAnchorGeometry(anchorID: "c", startLine: 41, endLine: 41, top: 800, height: 30),
         ]
         return MarkdownSyncMapBuilder.build(
@@ -86,7 +111,7 @@ struct MarkdownSyncCoordinatorTests {
                 editorLineHeight: 20,
                 editorMaxScrollY: 800,
                 editorViewportHeight: 400,
-                previewMaxScrollY: 1000,
+                previewMaxScrollY: previewMaxScrollY,
                 previewViewportHeight: 400
             )
         )
