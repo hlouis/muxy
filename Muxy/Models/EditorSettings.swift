@@ -53,14 +53,11 @@ final class EditorSettings {
         return NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
     }
 
-    var resolvedMarkdownPreviewFontFamilyCSS: String {
+    var resolvedMarkdownPreviewFontFamilyName: String? {
         if markdownPreviewFontFamily == Self.systemFontFamilyToken {
-            return Self.systemFontFamilyCSSStack
+            return nil
         }
-        let escaped = markdownPreviewFontFamily
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-        return "\"\(escaped)\", \(Self.systemFontFamilyCSSStack)"
+        return markdownPreviewFontFamily
     }
 
     func adjustMarkdownPreviewFontScale(by delta: CGFloat) {
@@ -70,9 +67,6 @@ final class EditorSettings {
             max(Self.minMarkdownPreviewFontScale, next)
         )
     }
-
-    static let systemFontFamilyCSSStack =
-        "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Helvetica, Arial, sans-serif"
 
     static var availableMarkdownPreviewFonts: [String] {
         let families = NSFontManager.shared.availableFontFamilies.sorted()

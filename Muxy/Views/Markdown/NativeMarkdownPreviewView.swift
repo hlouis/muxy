@@ -578,13 +578,23 @@ private struct NativeMarkdownCompatibleMarkdownView: View {
     }
 
     private func headingFont(for level: Int) -> Font {
+        let size: CGFloat = switch level {
+        case 1: 32
+        case 2: 24
+        case 3: 20
+        case 4: 17
+        case 5: 15
+        default: 14
+        }
+
+        if let fontFamilyName = palette.fontFamilyName {
+            return .custom(fontFamilyName, size: size)
+        }
+
         switch level {
-        case 1: .system(size: 32, weight: .bold)
-        case 2: .system(size: 24, weight: .bold)
-        case 3: .system(size: 20, weight: .semibold)
-        case 4: .system(size: 17, weight: .semibold)
-        case 5: .system(size: 15, weight: .semibold)
-        default: .system(size: 14, weight: .semibold)
+        case 1,
+             2: return .system(size: size, weight: .bold)
+        default: return .system(size: size, weight: .semibold)
         }
     }
 }
@@ -1178,6 +1188,9 @@ private extension Theme {
         return Theme.gitHub
             .text {
                 ForegroundColor(foreground)
+                if let fontFamilyName = palette.fontFamilyName {
+                    FontFamily(.custom(fontFamilyName))
+                }
                 FontSize(fontSize)
             }
             .link {

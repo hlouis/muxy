@@ -7,7 +7,7 @@ import SwiftUI
 /// (used by the markdown scroll-sync coordinator).
 struct EnclosingNSScrollViewReader: NSViewRepresentable {
     var onResolve: (NSScrollView) -> Void
-    var onScroll: ((NSScrollView) -> Void)? = nil
+    var onScroll: ((NSScrollView) -> Void)?
 
     func makeNSView(context: Context) -> ResolverView {
         let view = ResolverView()
@@ -27,6 +27,7 @@ struct EnclosingNSScrollViewReader: NSViewRepresentable {
         var onResolve: ((NSScrollView) -> Void)?
         var onScroll: ((NSScrollView) -> Void)?
         private weak var lastResolvedScrollView: NSScrollView?
+        private weak var observedContentView: NSClipView?
         private var pendingResolveRetry = false
         private var resolveRetryCount = 0
 
@@ -72,36 +73,48 @@ struct EnclosingNSScrollViewReader: NSViewRepresentable {
         }
 
         private func observeBoundsChanges(in scrollView: NSScrollView) {
-            NotificationCenter.default.removeObserver(self)
+            removeBoundsObservers()
+
             scrollView.contentView.postsBoundsChangedNotifications = true
             scrollView.contentView.postsFrameChangedNotifications = true
+            observedContentView = scrollView.contentView
             NotificationCenter.default.addObserver(
                 self,
-                selector: #selector(contentViewBoundsDidChange(_:)),
+                selector: #selector(contentViewBoundsDidChange),
                 name: NSView.boundsDidChangeNotification,
                 object: scrollView.contentView
             )
             NotificationCenter.default.addObserver(
                 self,
-                selector: #selector(contentViewFrameDidChange(_:)),
+                selector: #selector(contentViewFrameDidChange),
                 name: NSView.frameDidChangeNotification,
                 object: scrollView.contentView
             )
         }
 
+        private func removeBoundsObservers() {
+            NotificationCenter.default.removeObserver(
+                self,
+                name: NSView.boundsDidChangeNotification,
+                object: observedContentView
+            )
+            NotificationCenter.default.removeObserver(
+                self,
+                name: NSView.frameDidChangeNotification,
+                object: observedContentView
+            )
+            observedContentView = nil
+        }
+
         @objc
-        private func contentViewBoundsDidChange(_ notification: Notification) {
-            guard let scrollView = lastResolvedScrollView,
-                  notification.object as AnyObject? === scrollView.contentView
-            else { return }
+        private func contentViewBoundsDidChange() {
+            guard let scrollView = lastResolvedScrollView else { return }
             onScroll?(scrollView)
         }
 
         @objc
-        private func contentViewFrameDidChange(_ notification: Notification) {
-            guard let scrollView = lastResolvedScrollView,
-                  notification.object as AnyObject? === scrollView.contentView
-            else { return }
+        private func contentViewFrameDidChange() {
+            guard let scrollView = lastResolvedScrollView else { return }
             onScroll?(scrollView)
         }
 

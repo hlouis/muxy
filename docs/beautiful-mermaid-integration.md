@@ -1,6 +1,6 @@
 # BeautifulMermaid Swift integration notes (Muxy native Markdown preview)
 
-This repo currently does **not** include BeautifulMermaid in `Package.swift` (as of 2026-05-05). Below are the exact API surface findings and a minimal macOS SwiftUI integration prototype that should compile once the dependency is added.
+Muxy includes BeautifulMermaid through Swift Package Manager for native Mermaid rendering in the native Markdown preview. These notes capture the upstream API surface and the integration decisions used by `NativeMermaidBlockView`.
 
 ## Upstream package
 
@@ -9,19 +9,19 @@ This repo currently does **not** include BeautifulMermaid in `Package.swift` (as
 - Target module to import: `BeautifulMermaid`
 - Upstream target name is `BeautifulMermaid` with sources under `Sources/BeautifulMermaidSwift/`.
 
-### SPM additions (Muxy)
+### SPM wiring (Muxy)
 
-Add the package:
+The package is pinned in `Package.swift`:
 
 ```swift
 // Package.swift
 dependencies: [
   // ...
-  .package(url: "https://github.com/lukilabs/beautiful-mermaid-swift", from: "1.0.0"),
+  .package(url: "https://github.com/lukilabs/beautiful-mermaid-swift", exact: "1.0.0"),
 ]
 ```
 
-Add product to the app target dependencies (likely the `Muxy` executable target):
+The app target depends on the product:
 
 ```swift
 .executableTarget(
@@ -140,7 +140,7 @@ let theme = DiagramTheme(
 )
 ```
 
-Muxy already has a `colorToHex(_:)` helper in `Muxy/Models/MarkdownRenderer.swift` (returns `RRGGBB` without the `#`). You can reuse that approach if you need deterministic hex output.
+`NativeMermaidBlockView` derives a stable render key from the active `NSColor` components so diagrams re-render when the Markdown preview palette changes.
 
 ## Error handling patterns
 
@@ -179,7 +179,7 @@ ctx.scaleBy(x: 1, y: -1)
 
 ## Practical recommendation for Muxy native Markdown preview
 
-- Prefer `MermaidDiagramView` for quickest SwiftUI integration.
-- Use `EditorThemePalette.active` to create `DiagramTheme` (pass NSColors directly).
-- Use the `parseError` binding to show an inline error box similar to the current WebView-based Mermaid error output.
-- Consider caching rendered images or prepared diagrams (`PreparedDiagram`) if performance becomes an issue in large documents.
+- Render fitted `NSImage`s with `MermaidImageRenderer` so SwiftUI owns the block layout and diagrams are not clipped by AppKit intrinsic sizing.
+- Use `EditorThemePalette.active` via `MarkdownRenderer.Palette` to create `DiagramTheme` (pass `NSColor`s directly).
+- Show inline errors for parser/layout/export failures instead of falling back to the removed WebView preview.
+- Cache rendered images by source, width, and palette so repeated SwiftUI layout passes do not continuously re-render diagrams.

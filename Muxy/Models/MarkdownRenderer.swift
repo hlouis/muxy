@@ -6,7 +6,7 @@ enum MarkdownRenderer {
         let background: NSColor
         let foreground: NSColor
         let accent: NSColor
-        let fontFamilyCSS: String
+        let fontFamilyName: String?
         let fontScale: CGFloat
     }
 }

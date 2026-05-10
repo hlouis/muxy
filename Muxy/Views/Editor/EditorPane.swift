@@ -251,7 +251,7 @@ struct EditorPane: View {
             background: palette.background,
             foreground: palette.foreground,
             accent: palette.accent,
-            fontFamilyCSS: editorSettings.resolvedMarkdownPreviewFontFamilyCSS,
+            fontFamilyName: editorSettings.resolvedMarkdownPreviewFontFamilyName,
             fontScale: editorSettings.markdownPreviewFontScale
         )
     }
