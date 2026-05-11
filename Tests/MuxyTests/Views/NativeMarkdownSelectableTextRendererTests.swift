@@ -23,7 +23,10 @@ struct NativeMarkdownSelectableTextRendererTests {
 
         let codeRange = (attributed.string as NSString).range(of: "let value = 1")
         #expect(codeRange.location != NSNotFound)
-        #expect(attributed.attribute(NSAttributedString.Key("muxy.nativeMarkdown.inlineCode"), at: codeRange.location, effectiveRange: nil) != nil)
+        let inlineCodeAttribute = NSAttributedString.Key("muxy.nativeMarkdown.inlineCode")
+        #expect(attributed.attribute(inlineCodeAttribute, at: codeRange.location, effectiveRange: nil) != nil)
+        #expect(attributed.attribute(inlineCodeAttribute, at: codeRange.location - 1, effectiveRange: nil) == nil)
+        #expect(attributed.attribute(inlineCodeAttribute, at: NSMaxRange(codeRange), effectiveRange: nil) == nil)
 
         let font = try #require(attributed.attribute(.font, at: codeRange.location, effectiveRange: nil) as? NSFont)
         #expect(font.isFixedPitch)
@@ -52,5 +55,18 @@ struct NativeMarkdownSelectableTextRendererTests {
 
         let font = try #require(attributed.attribute(.font, at: codeRange.location, effectiveRange: nil) as? NSFont)
         #expect(font.isFixedPitch)
+    }
+
+    @Test("requested text alignment is applied to rendered paragraphs")
+    func paragraphAlignment() throws {
+        let attributed = try #require(NativeMarkdownSelectableTextRenderer.attributedMarkdown(
+            from: "Centered `code` text.",
+            baseURL: nil,
+            palette: palette,
+            textAlignment: .center
+        ))
+
+        let paragraphStyle = try #require(attributed.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)
+        #expect(paragraphStyle.alignment == .center)
     }
 }

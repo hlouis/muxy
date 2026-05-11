@@ -18,7 +18,19 @@ enum NativeMarkdownSelectableTextRenderer {
         let count: Int
     }
 
-    static func attributedMarkdown(from markdown: String, baseURL: URL?, palette: MarkdownRenderer.Palette) -> NSAttributedString? {
+    private struct RenderContext {
+        let baseURL: URL?
+        let palette: MarkdownRenderer.Palette
+        let bodyFont: NSFont
+        let textAlignment: NSTextAlignment
+    }
+
+    static func attributedMarkdown(
+        from markdown: String,
+        baseURL: URL?,
+        palette: MarkdownRenderer.Palette,
+        textAlignment: NSTextAlignment = .natural
+    ) -> NSAttributedString? {
         let lines = markdown
             .replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
@@ -29,6 +41,12 @@ enum NativeMarkdownSelectableTextRenderer {
 
         let result = NSMutableAttributedString()
         let bodyFont = Self.bodyFont(for: palette)
+        let context = RenderContext(
+            baseURL: baseURL,
+            palette: palette,
+            bodyFont: bodyFont,
+            textAlignment: textAlignment
+        )
         var index = 0
 
         while index < lines.count {
@@ -36,7 +54,7 @@ enum NativeMarkdownSelectableTextRenderer {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
 
             if trimmed.isEmpty {
-                appendSoftBreak(to: result, font: bodyFont, palette: palette)
+                appendSoftBreak(to: result, context: context)
                 index += 1
                 continue
             }
@@ -57,24 +75,24 @@ enum NativeMarkdownSelectableTextRenderer {
                 if index >= lines.count, codeLines.isEmpty {
                     codeLines = Array(lines[(startIndex + 1)...])
                 }
-                appendCodeBlock(codeLines.joined(separator: "\n"), to: result, palette: palette, bodyFont: bodyFont)
+                appendCodeBlock(codeLines.joined(separator: "\n"), to: result, context: context)
                 continue
             }
 
             if let heading = parseHeading(trimmed) {
-                appendHeading(level: heading.level, markdown: heading.text, to: result, baseURL: baseURL, palette: palette)
+                appendHeading(level: heading.level, markdown: heading.text, to: result, context: context)
                 index += 1
                 continue
             }
 
             if isThematicBreak(trimmed) {
-                appendThematicBreak(to: result, palette: palette, bodyFont: bodyFont)
+                appendThematicBreak(to: result, context: context)
                 index += 1
                 continue
             }
 
             if let listLine = parseListLine(line) {
-                appendListLine(listLine, to: result, baseURL: baseURL, palette: palette, bodyFont: bodyFont)
+                appendListLine(listLine, to: result, context: context)
                 index += 1
                 continue
             }
@@ -87,7 +105,7 @@ enum NativeMarkdownSelectableTextRenderer {
                     quoteLines.append(String(candidate.dropFirst()).trimmingCharacters(in: .whitespaces))
                     index += 1
                 }
-                appendBlockquote(quoteLines.joined(separator: "\n"), to: result, baseURL: baseURL, palette: palette, bodyFont: bodyFont)
+                appendBlockquote(quoteLines.joined(separator: "\n"), to: result, context: context)
                 continue
             }
 
@@ -99,7 +117,7 @@ enum NativeMarkdownSelectableTextRenderer {
                 paragraphLines.append(candidateTrimmed)
                 index += 1
             }
-            appendParagraph(paragraphLines.joined(separator: " "), to: result, baseURL: baseURL, palette: palette, bodyFont: bodyFont)
+            appendParagraph(paragraphLines.joined(separator: " "), to: result, context: context)
         }
 
         trimTrailingNewlines(from: result)
@@ -110,8 +128,7 @@ enum NativeMarkdownSelectableTextRenderer {
         level: Int,
         markdown: String,
         to result: NSMutableAttributedString,
-        baseURL: URL?,
-        palette: MarkdownRenderer.Palette
+        context: RenderContext
     ) {
         let size: CGFloat = switch level {
         case 1: 32
@@ -121,20 +138,24 @@ enum NativeMarkdownSelectableTextRenderer {
         case 5: 15
         default: 14
         }
-        let font = palette.fontFamilyName.flatMap { NSFont(name: $0, size: size) }
+        let font = context.palette.fontFamilyName.flatMap { NSFont(name: $0, size: size) }
             ?? NSFont.systemFont(ofSize: size, weight: level <= 2 ? .bold : .semibold)
-        let paragraphStyle = blockParagraphStyle(spacingBefore: result.length == 0 ? 0 : 12, spacingAfter: level <= 2 ? 10 : 8)
-        let attributed = attributedInlineMarkdown(markdown, baseURL: baseURL, palette: palette, bodyFont: font)
+        let paragraphStyle = blockParagraphStyle(
+            spacingBefore: result.length == 0 ? 0 : 12,
+            spacingAfter: level <= 2 ? 10 : 8,
+            alignment: context.textAlignment
+        )
+        let attributed = attributedInlineMarkdown(markdown, baseURL: context.baseURL, palette: context.palette, bodyFont: font)
         let range = NSRange(location: 0, length: attributed.length)
         attributed.addAttributes([
             .font: font,
-            .foregroundColor: palette.foreground,
+            .foregroundColor: context.palette.foreground,
             .paragraphStyle: paragraphStyle,
         ], range: range)
         result.append(attributed)
         result.append(NSAttributedString(string: "\n", attributes: [
             .font: font,
-            .foregroundColor: palette.foreground,
+            .foregroundColor: context.palette.foreground,
             .paragraphStyle: paragraphStyle,
         ]))
     }
@@ -142,18 +163,16 @@ enum NativeMarkdownSelectableTextRenderer {
     private static func appendParagraph(
         _ markdown: String,
         to result: NSMutableAttributedString,
-        baseURL: URL?,
-        palette: MarkdownRenderer.Palette,
-        bodyFont: NSFont
+        context: RenderContext
     ) {
         guard !markdown.isEmpty else { return }
-        let paragraphStyle = blockParagraphStyle(spacingBefore: 0, spacingAfter: 8)
-        let attributed = attributedInlineMarkdown(markdown, baseURL: baseURL, palette: palette, bodyFont: bodyFont)
+        let paragraphStyle = blockParagraphStyle(spacingBefore: 0, spacingAfter: 8, alignment: context.textAlignment)
+        let attributed = attributedInlineMarkdown(markdown, baseURL: context.baseURL, palette: context.palette, bodyFont: context.bodyFont)
         attributed.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: attributed.length))
         result.append(attributed)
         result.append(NSAttributedString(string: "\n", attributes: [
-            .font: bodyFont,
-            .foregroundColor: palette.foreground,
+            .font: context.bodyFont,
+            .foregroundColor: context.palette.foreground,
             .paragraphStyle: paragraphStyle,
         ]))
     }
@@ -161,19 +180,17 @@ enum NativeMarkdownSelectableTextRenderer {
     private static func appendListLine(
         _ line: ParsedListLine,
         to result: NSMutableAttributedString,
-        baseURL: URL?,
-        palette: MarkdownRenderer.Palette,
-        bodyFont: NSFont
+        context: RenderContext
     ) {
-        let paragraphStyle = listParagraphStyle(level: line.level)
+        let paragraphStyle = listParagraphStyle(level: line.level, alignment: context.textAlignment)
         let markerAttributes: [NSAttributedString.Key: Any] = [
-            .font: bodyFont,
-            .foregroundColor: palette.foreground,
+            .font: context.bodyFont,
+            .foregroundColor: context.palette.foreground,
             .paragraphStyle: paragraphStyle,
         ]
         result.append(NSAttributedString(string: "\(line.marker)\t", attributes: markerAttributes))
 
-        let content = attributedInlineMarkdown(line.content, baseURL: baseURL, palette: palette, bodyFont: bodyFont)
+        let content = attributedInlineMarkdown(line.content, baseURL: context.baseURL, palette: context.palette, bodyFont: context.bodyFont)
         content.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: content.length))
         result.append(content)
         result.append(NSAttributedString(string: "\n", attributes: markerAttributes))
@@ -182,9 +199,7 @@ enum NativeMarkdownSelectableTextRenderer {
     private static func appendBlockquote(
         _ markdown: String,
         to result: NSMutableAttributedString,
-        baseURL: URL?,
-        palette: MarkdownRenderer.Palette,
-        bodyFont: NSFont
+        context: RenderContext
     ) {
         guard !markdown.isEmpty else { return }
         let paragraphStyle = NSMutableParagraphStyle()
@@ -192,15 +207,16 @@ enum NativeMarkdownSelectableTextRenderer {
         paragraphStyle.headIndent = 16
         paragraphStyle.paragraphSpacing = 8
         paragraphStyle.lineSpacing = 2
-        let attributed = attributedInlineMarkdown(markdown, baseURL: baseURL, palette: palette, bodyFont: bodyFont)
+        paragraphStyle.alignment = context.textAlignment
+        let attributed = attributedInlineMarkdown(markdown, baseURL: context.baseURL, palette: context.palette, bodyFont: context.bodyFont)
         attributed.addAttributes([
-            .foregroundColor: palette.foreground.withAlphaComponent(0.78),
+            .foregroundColor: context.palette.foreground.withAlphaComponent(0.78),
             .paragraphStyle: paragraphStyle,
         ], range: NSRange(location: 0, length: attributed.length))
         result.append(attributed)
         result.append(NSAttributedString(string: "\n", attributes: [
-            .font: bodyFont,
-            .foregroundColor: palette.foreground.withAlphaComponent(0.78),
+            .font: context.bodyFont,
+            .foregroundColor: context.palette.foreground.withAlphaComponent(0.78),
             .paragraphStyle: paragraphStyle,
         ]))
     }
@@ -208,38 +224,40 @@ enum NativeMarkdownSelectableTextRenderer {
     private static func appendCodeBlock(
         _ code: String,
         to result: NSMutableAttributedString,
-        palette: MarkdownRenderer.Palette,
-        bodyFont: NSFont
+        context: RenderContext
     ) {
         let paragraphStyle = blockParagraphStyle(spacingBefore: 8, spacingAfter: 12)
         paragraphStyle.firstLineHeadIndent = 14
         paragraphStyle.headIndent = 14
         paragraphStyle.tailIndent = -14
         paragraphStyle.lineSpacing = 1
-        let codeFont = NSFont.monospacedSystemFont(ofSize: bodyFont.pointSize * 0.92, weight: .regular)
+        let codeFont = NSFont.monospacedSystemFont(ofSize: context.bodyFont.pointSize * 0.92, weight: .regular)
         let text = code.hasSuffix("\n") ? code : code + "\n"
         result.append(NSAttributedString(string: text, attributes: [
             .font: codeFont,
-            .foregroundColor: palette.foreground,
+            .foregroundColor: context.palette.foreground,
             .nativeMarkdownCodeBlock: true,
             .paragraphStyle: paragraphStyle,
         ]))
     }
 
-    private static func appendThematicBreak(to result: NSMutableAttributedString, palette: MarkdownRenderer.Palette, bodyFont: NSFont) {
-        let paragraphStyle = blockParagraphStyle(spacingBefore: 8, spacingAfter: 12)
+    private static func appendThematicBreak(
+        to result: NSMutableAttributedString,
+        context: RenderContext
+    ) {
+        let paragraphStyle = blockParagraphStyle(spacingBefore: 8, spacingAfter: 12, alignment: context.textAlignment)
         result.append(NSAttributedString(string: "────────────\n", attributes: [
-            .font: bodyFont,
-            .foregroundColor: palette.borderColor,
+            .font: context.bodyFont,
+            .foregroundColor: context.palette.borderColor,
             .paragraphStyle: paragraphStyle,
         ]))
     }
 
-    private static func appendSoftBreak(to result: NSMutableAttributedString, font: NSFont, palette: MarkdownRenderer.Palette) {
+    private static func appendSoftBreak(to result: NSMutableAttributedString, context: RenderContext) {
         guard result.length > 0, !result.string.hasSuffix("\n\n") else { return }
         result.append(NSAttributedString(string: "\n", attributes: [
-            .font: font,
-            .foregroundColor: palette.foreground,
+            .font: context.bodyFont,
+            .foregroundColor: context.palette.foreground,
         ]))
     }
 
@@ -413,15 +431,20 @@ enum NativeMarkdownSelectableTextRenderer {
             ?? NSFont.systemFont(ofSize: fontSize)
     }
 
-    private static func blockParagraphStyle(spacingBefore: CGFloat, spacingAfter: CGFloat) -> NSMutableParagraphStyle {
+    private static func blockParagraphStyle(
+        spacingBefore: CGFloat,
+        spacingAfter: CGFloat,
+        alignment: NSTextAlignment = .natural
+    ) -> NSMutableParagraphStyle {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.paragraphSpacingBefore = spacingBefore
         paragraphStyle.paragraphSpacing = spacingAfter
         paragraphStyle.lineSpacing = 2
+        paragraphStyle.alignment = alignment
         return paragraphStyle
     }
 
-    private static func listParagraphStyle(level: Int) -> NSParagraphStyle {
+    private static func listParagraphStyle(level: Int, alignment: NSTextAlignment) -> NSParagraphStyle {
         let paragraphStyle = NSMutableParagraphStyle()
         let baseIndent = CGFloat(level) * 22
         let contentIndent = baseIndent + 24
@@ -431,6 +454,7 @@ enum NativeMarkdownSelectableTextRenderer {
         paragraphStyle.defaultTabInterval = 24
         paragraphStyle.lineSpacing = 2
         paragraphStyle.paragraphSpacing = 4
+        paragraphStyle.alignment = alignment
         return paragraphStyle
     }
 
@@ -707,17 +731,16 @@ final class NativeMarkdownSelectableTextView: NSTextView {
         layoutManager.ensureLayout(for: textContainer)
         let origin = textContainerOrigin
         var rects: [NSRect] = []
-        layoutManager.enumerateEnclosingRects(
-            forGlyphRange: glyphRange,
-            withinSelectedGlyphRange: NSRange(location: NSNotFound, length: 0),
-            in: textContainer
-        ) { rect, _ in
-            rects.append(
-                rect
-                    .offsetBy(dx: origin.x, dy: origin.y)
-                    .insetBy(dx: -4, dy: -1.5)
-                    .integral
-            )
+        layoutManager.enumerateLineFragments(forGlyphRange: glyphRange) { _, _, _, lineGlyphRange, _ in
+            let lineCodeGlyphRange = NSIntersectionRange(glyphRange, lineGlyphRange)
+            guard lineCodeGlyphRange.location != NSNotFound, lineCodeGlyphRange.length > 0 else { return }
+
+            let rect = layoutManager.boundingRect(forGlyphRange: lineCodeGlyphRange, in: textContainer)
+                .offsetBy(dx: origin.x, dy: origin.y)
+                .insetBy(dx: -1, dy: -1.5)
+                .integral
+            guard !rect.isEmpty else { return }
+            rects.append(rect)
         }
         return rects
     }

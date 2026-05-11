@@ -512,7 +512,8 @@ private struct NativeMarkdownCompatibleMarkdownView: View {
                     if let attributedMarkdown = NativeMarkdownSelectableTextRenderer.attributedMarkdown(
                         from: preparedMarkdown,
                         baseURL: baseURL,
-                        palette: palette
+                        palette: palette,
+                        textAlignment: alignment.nsTextAlignment
                     ) {
                         NativeMarkdownSelectableTextBlockView(attributedString: attributedMarkdown, palette: palette)
                             .frame(maxWidth: .infinity, alignment: alignment.frameAlignment)
@@ -732,6 +733,14 @@ private enum NativeMarkdownHTMLCompatibilityPreprocessor {
             case .leading: .leading
             case .center: .center
             case .trailing: .trailing
+            }
+        }
+
+        var nsTextAlignment: NSTextAlignment {
+            switch self {
+            case .leading: .left
+            case .center: .center
+            case .trailing: .right
             }
         }
 
