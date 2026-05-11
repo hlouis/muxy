@@ -57,6 +57,7 @@ struct NativeMermaidBlockView: View {
                 .buttonStyle(.borderless)
                 .font(.system(size: 11, weight: .medium))
                 .disabled(source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .pointingHandCursor(enabled: !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
 
             ZStack {
@@ -254,6 +255,50 @@ struct NativeMermaidBlockView: View {
         if !didOpen {
             exportError = "Could not open the exported diagram. The PNG was written to \(fileURL.path)."
         }
+    }
+}
+
+private extension View {
+    func pointingHandCursor(enabled: Bool = true) -> some View {
+        modifier(PointingHandCursorModifier(enabled: enabled))
+    }
+}
+
+private struct PointingHandCursorModifier: ViewModifier {
+    let enabled: Bool
+    @State private var cursorPushed = false
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { hovering in
+                updateCursor(hovering: hovering)
+            }
+            .onChange(of: enabled) { _, enabled in
+                if !enabled { popCursorIfNeeded() }
+            }
+            .onDisappear {
+                popCursorIfNeeded()
+            }
+    }
+
+    private func updateCursor(hovering: Bool) {
+        guard enabled else {
+            popCursorIfNeeded()
+            return
+        }
+
+        if hovering, !cursorPushed {
+            NSCursor.pointingHand.push()
+            cursorPushed = true
+        } else if !hovering {
+            popCursorIfNeeded()
+        }
+    }
+
+    private func popCursorIfNeeded() {
+        guard cursorPushed else { return }
+        NSCursor.pop()
+        cursorPushed = false
     }
 }
 

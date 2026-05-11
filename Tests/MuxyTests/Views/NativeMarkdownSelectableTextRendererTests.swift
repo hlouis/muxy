@@ -69,4 +69,41 @@ struct NativeMarkdownSelectableTextRendererTests {
         let paragraphStyle = try #require(attributed.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)
         #expect(paragraphStyle.alignment == .center)
     }
+
+    @Test("pipe markdown tables are split into table segments")
+    func pipeTableSegments() throws {
+        let segments = NativeMarkdownTableParser.segments(from: """
+        Intro
+
+        | Method | Path | Purpose |
+        | ------ | :--- | ------: |
+        | `GET` | `/items` | List items |
+        | `POST` | `/items` | Create item |
+
+        Outro
+        """)
+
+        #expect(segments.count == 3)
+        let segmentIDs = segments.map(\.id)
+        #expect(Set(segmentIDs).count == segmentIDs.count)
+        guard case .markdown = segments[0] else {
+            Issue.record("Expected leading markdown segment")
+            return
+        }
+        guard case let .table(table) = segments[1] else {
+            Issue.record("Expected table segment")
+            return
+        }
+        guard case .markdown = segments[2] else {
+            Issue.record("Expected trailing markdown segment")
+            return
+        }
+
+        #expect(table.headers == ["Method", "Path", "Purpose"])
+        #expect(table.alignments == [.leading, .leading, .trailing])
+        #expect(table.rows == [
+            ["`GET`", "`/items`", "List items"],
+            ["`POST`", "`/items`", "Create item"],
+        ])
+    }
 }

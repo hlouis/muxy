@@ -573,6 +573,9 @@ final class NativeMarkdownSelectableTextView: NSTextView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         window?.acceptsMouseMovedEvents = true
+        DispatchQueue.main.async { [weak self] in
+            self?.refreshLinkCursorRects()
+        }
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -586,13 +589,18 @@ final class NativeMarkdownSelectableTextView: NSTextView {
         }
         let area = NSTrackingArea(
             rect: .zero,
-            options: [.activeInKeyWindow, .inVisibleRect, .mouseMoved, .mouseEnteredAndExited, .cursorUpdate],
+            options: [.activeAlways, .inVisibleRect, .mouseMoved, .mouseEnteredAndExited, .cursorUpdate],
             owner: self,
             userInfo: nil
         )
         addTrackingArea(area)
         hoverTrackingArea = area
         super.updateTrackingAreas()
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        super.mouseEntered(with: event)
+        updateHoveredLink(at: convert(event.locationInWindow, from: nil))
     }
 
     override func mouseMoved(with event: NSEvent) {
@@ -607,7 +615,7 @@ final class NativeMarkdownSelectableTextView: NSTextView {
 
     override func cursorUpdate(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        if let characterIndex = characterIndex(at: point), linkRange(at: characterIndex) != nil {
+        if linkRange(at: point) != nil {
             NSCursor.pointingHand.set()
         } else {
             super.cursorUpdate(with: event)
@@ -638,11 +646,7 @@ final class NativeMarkdownSelectableTextView: NSTextView {
     }
 
     private func updateHoveredLink(at point: NSPoint) {
-        let linkRange: NSRange? = if let characterIndex = characterIndex(at: point) {
-            self.linkRange(at: characterIndex)
-        } else {
-            nil
-        }
+        let linkRange = linkRange(at: point)
 
         guard linkRange != hoveredLinkRange else {
             if linkRange != nil { NSCursor.pointingHand.set() }
@@ -746,52 +750,52 @@ final class NativeMarkdownSelectableTextView: NSTextView {
     }
 
     private func addLinkCursorRects() {
-        guard let layoutManager, let textContainer, let textStorage, textStorage.length > 0 else { return }
-        layoutManager.ensureLayout(for: textContainer)
-        let textOrigin = textContainerOrigin
+        guard let textStorage, textStorage.length > 0 else { return }
         let fullRange = NSRange(location: 0, length: textStorage.length)
 
         textStorage.enumerateAttribute(.link, in: fullRange) { value, range, _ in
             guard value != nil, range.length > 0 else { return }
-            let glyphRange = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
-            guard glyphRange.length > 0 else { return }
-
-            layoutManager.enumerateEnclosingRects(
-                forGlyphRange: glyphRange,
-                withinSelectedGlyphRange: NSRange(location: NSNotFound, length: 0),
-                in: textContainer
-            ) { rect, _ in
-                let cursorRect = rect
-                    .offsetBy(dx: textOrigin.x, dy: textOrigin.y)
-                    .insetBy(dx: -1, dy: -1)
-                self.addCursorRect(cursorRect, cursor: .pointingHand)
+            for rect in linkCursorRects(for: range) {
+                addCursorRect(rect, cursor: .pointingHand)
             }
         }
     }
 
-    private func characterIndex(at point: NSPoint) -> Int? {
-        guard let layoutManager, let textContainer, let textStorage else { return nil }
-        var containerPoint = point
-        containerPoint.x -= textContainerOrigin.x
-        containerPoint.y -= textContainerOrigin.y
-        guard containerPoint.x >= 0, containerPoint.y >= 0 else { return nil }
-        layoutManager.ensureLayout(for: textContainer)
-        var fraction: CGFloat = 0
-        let index = layoutManager.characterIndex(
-            for: containerPoint,
-            in: textContainer,
-            fractionOfDistanceBetweenInsertionPoints: &fraction
-        )
-        guard index >= 0, index < textStorage.length else { return nil }
-        return index
+    private func linkRange(at point: NSPoint) -> NSRange? {
+        guard let textStorage, textStorage.length > 0 else { return nil }
+        let fullRange = NSRange(location: 0, length: textStorage.length)
+        var matchedRange: NSRange?
+
+        textStorage.enumerateAttribute(.link, in: fullRange) { value, range, stop in
+            guard value != nil, range.length > 0 else { return }
+            if linkCursorRects(for: range).contains(where: { $0.contains(point) }) {
+                matchedRange = range
+                stop.pointee = true
+            }
+        }
+
+        return matchedRange
     }
 
-    private func linkRange(at index: Int) -> NSRange? {
-        guard let textStorage, index >= 0, index < textStorage.length else { return nil }
-        let fullRange = NSRange(location: 0, length: textStorage.length)
-        var effectiveRange = NSRange(location: NSNotFound, length: 0)
-        let link = textStorage.attribute(.link, at: index, longestEffectiveRange: &effectiveRange, in: fullRange)
-        guard link != nil, effectiveRange.location != NSNotFound, effectiveRange.length > 0 else { return nil }
-        return effectiveRange
+    private func linkCursorRects(for characterRange: NSRange) -> [NSRect] {
+        guard let layoutManager, let textContainer else { return [] }
+        let glyphRange = layoutManager.glyphRange(forCharacterRange: characterRange, actualCharacterRange: nil)
+        guard glyphRange.length > 0 else { return [] }
+
+        layoutManager.ensureLayout(for: textContainer)
+        let origin = textContainerOrigin
+        var rects: [NSRect] = []
+        layoutManager.enumerateLineFragments(forGlyphRange: glyphRange) { _, _, _, lineGlyphRange, _ in
+            let lineLinkGlyphRange = NSIntersectionRange(glyphRange, lineGlyphRange)
+            guard lineLinkGlyphRange.location != NSNotFound, lineLinkGlyphRange.length > 0 else { return }
+
+            let rect = layoutManager.boundingRect(forGlyphRange: lineLinkGlyphRange, in: textContainer)
+                .offsetBy(dx: origin.x, dy: origin.y)
+                .insetBy(dx: -2, dy: -2)
+                .integral
+            guard !rect.isEmpty else { return }
+            rects.append(rect)
+        }
+        return rects
     }
 }

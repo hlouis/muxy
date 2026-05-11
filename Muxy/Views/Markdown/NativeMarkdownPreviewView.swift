@@ -491,13 +491,7 @@ private struct NativeMarkdownCompatibleMarkdownView: View {
                 switch segment.content {
                 case let .markdown(markdown):
                     let preparedMarkdown = NativeMarkdownHTMLCompatibilityPreprocessor.preprocess(markdown, baseURL: baseURL)
-                    if let attributedMarkdown = NativeMarkdownSelectableTextRenderer.attributedMarkdown(
-                        from: preparedMarkdown,
-                        baseURL: baseURL,
-                        palette: palette
-                    ) {
-                        NativeMarkdownSelectableTextBlockView(attributedString: attributedMarkdown, palette: palette)
-                    }
+                    NativeMarkdownFlowContentView(markdown: preparedMarkdown, baseURL: baseURL, palette: palette)
 
                 case let .heading(level, text, alignment):
                     Text(text)
@@ -509,15 +503,13 @@ private struct NativeMarkdownCompatibleMarkdownView: View {
 
                 case let .paragraph(markdown, alignment):
                     let preparedMarkdown = NativeMarkdownHTMLCompatibilityPreprocessor.preprocess(markdown, baseURL: baseURL)
-                    if let attributedMarkdown = NativeMarkdownSelectableTextRenderer.attributedMarkdown(
-                        from: preparedMarkdown,
+                    NativeMarkdownFlowContentView(
+                        markdown: preparedMarkdown,
                         baseURL: baseURL,
                         palette: palette,
                         textAlignment: alignment.nsTextAlignment
-                    ) {
-                        NativeMarkdownSelectableTextBlockView(attributedString: attributedMarkdown, palette: palette)
-                            .frame(maxWidth: .infinity, alignment: alignment.frameAlignment)
-                    }
+                    )
+                    .frame(maxWidth: .infinity, alignment: alignment.frameAlignment)
 
                 case let .images(images, alignment):
                     Group {
