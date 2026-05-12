@@ -2,160 +2,88 @@ import AppKit
 
 @MainActor
 final class NativeMarkdownCursorCoordinator {
-    fileprivate enum CursorDecision: Equatable {
-        case pointingHand
-        case textSelection
-    }
+    static let shared = NativeMarkdownCursorCoordinator()
 
-    fileprivate struct CursorHit {
-        let decision: CursorDecision
-        let hoveredTextView: NativeMarkdownSelectableTextView?
-        let hoveredLinkRange: NSRange?
-    }
-
-    private weak var scrollView: NSScrollView?
+    private var scrollViewBoxes: [WeakScrollViewBox] = []
     private var localEventMonitor: Any?
-    private var updateScheduled = false
-    private var lastAppliedDecision: CursorDecision?
 
-    deinit {
-        MainActor.assumeIsolated {
-            if let localEventMonitor {
-                NSEvent.removeMonitor(localEventMonitor)
-            }
-        }
-    }
+    private init() {}
 
-    func attach(to scrollView: NSScrollView) {
-        if self.scrollView === scrollView {
-            scrollView.window?.acceptsMouseMovedEvents = true
-            scheduleUpdate()
-            return
-        }
-
-        detach()
-        self.scrollView = scrollView
+    func attach(_ scrollView: NSScrollView) {
         scrollView.window?.acceptsMouseMovedEvents = true
-        localEventMonitor = NSEvent.addLocalMonitorForEvents(
-            matching: [.mouseMoved, .cursorUpdate, .leftMouseDragged, .leftMouseDown, .leftMouseUp, .scrollWheel]
-        ) { [weak self] event in
-            self?.scheduleUpdate(for: event)
-            return event
-        }
-        scheduleUpdate()
+        scrollViewBoxes.removeAll { $0.value == nil || $0.value === scrollView }
+        scrollViewBoxes.append(WeakScrollViewBox(scrollView))
+        ensureEventMonitor()
     }
 
-    func detach() {
-        if let localEventMonitor {
+    func detach(_ scrollView: NSScrollView) {
+        scrollView.nativeMarkdownClearLinkHovers(except: nil)
+        scrollViewBoxes.removeAll { $0.value == nil || $0.value === scrollView }
+        if scrollViewBoxes.isEmpty, let localEventMonitor {
             NSEvent.removeMonitor(localEventMonitor)
             self.localEventMonitor = nil
         }
-        scrollView?.nativeMarkdownClearLinkHovers(except: nil)
-        scrollView = nil
-        updateScheduled = false
-        lastAppliedDecision = nil
     }
 
-    func scheduleUpdateAfterScroll() {
-        scheduleUpdate()
-    }
+    func scheduleUpdateAfterScroll(for scrollView: NSScrollView) {
+        guard let window = scrollView.window else { return }
+        applyCursor(forWindowPoint: window.mouseLocationOutsideOfEventStream)
 
-    private func scheduleUpdate(for event: NSEvent? = nil) {
-        guard let scrollView, let window = scrollView.window else { return }
-        if let event, event.window !== window { return }
-        window.acceptsMouseMovedEvents = true
-        guard !updateScheduled else { return }
-
-        updateScheduled = true
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.updateScheduled = false
-            self.updateCursorNow()
-        }
-    }
-
-    private func updateCursorNow() {
-        guard let scrollView, let window = scrollView.window else { return }
-        let windowPoint = window.mouseLocationOutsideOfEventStream
-        let scrollViewWindowRect = scrollView.convert(scrollView.bounds, to: nil)
-        guard scrollViewWindowRect.contains(windowPoint) else {
-            scrollView.nativeMarkdownClearLinkHovers(except: nil)
-            lastAppliedDecision = nil
-            return
-        }
-
+        let visibleWindowRect = scrollView.contentView.convert(scrollView.contentView.bounds, to: nil)
         let rootView = scrollView.documentView ?? scrollView
-        let hit = rootView.nativeMarkdownCursorHit(atWindowPoint: windowPoint)
-        rootView.nativeMarkdownClearLinkHovers(except: hit?.hoveredTextView)
-        if let textView = hit?.hoveredTextView {
-            textView.nativeMarkdownSetHoveredLinkRange(hit?.hoveredLinkRange)
-        }
-
-        guard let decision = hit?.decision else {
-            // Let AppKit keep its default cursor for non-markdown-interactive regions.
-            if lastAppliedDecision == .pointingHand {
-                NSCursor.arrow.set()
-            }
-            lastAppliedDecision = nil
-            return
-        }
-
-        switch decision {
-        case .pointingHand:
-            NSCursor.pointingHand.set()
-        case .textSelection:
-            NSCursor.iBeam.set()
-        }
-        lastAppliedDecision = decision
+        rootView.nativeMarkdownRefreshHoverState(inVisibleWindowRect: visibleWindowRect, window: window)
     }
-}
 
-@MainActor
-protocol NativeMarkdownPointingHandCursorRegion: AnyObject {
-    func nativeMarkdownWantsPointingHandCursor(atWindowPoint windowPoint: NSPoint) -> Bool
-}
+    private func ensureEventMonitor() {
+        guard localEventMonitor == nil else { return }
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.mouseMoved, .leftMouseDragged, .scrollWheel]
+        ) { [weak self] event in
+            self?.applyCursor(forWindowPoint: event.locationInWindow)
+            return event
+        }
+    }
 
-private extension NSView {
-    func nativeMarkdownCursorHit(atWindowPoint windowPoint: NSPoint) -> NativeMarkdownCursorCoordinator.CursorHit? {
-        guard !isHidden else { return nil }
-        let localPoint = convert(windowPoint, from: nil)
-        guard bounds.contains(localPoint) else { return nil }
-
-        for subview in subviews.reversed() {
-            if let hit = subview.nativeMarkdownCursorHit(atWindowPoint: windowPoint) {
-                return hit
+    private func applyCursor(forWindowPoint windowPoint: NSPoint) {
+        var visitedWindows: Set<ObjectIdentifier> = []
+        for box in scrollViewBoxes {
+            guard let scrollView = box.value, let window = scrollView.window, window.isVisible else { continue }
+            guard visitedWindows.insert(ObjectIdentifier(window)).inserted else { continue }
+            guard let contentView = window.contentView, let hitView = contentView.hitTest(windowPoint) else { continue }
+            if let cursor = cursor(forHitView: hitView, windowPoint: windowPoint) {
+                cursor.set()
+                return
             }
         }
+    }
 
-        if let region = self as? NativeMarkdownPointingHandCursorRegion,
-           region.nativeMarkdownWantsPointingHandCursor(atWindowPoint: windowPoint)
-        {
-            return NativeMarkdownCursorCoordinator.CursorHit(
-                decision: .pointingHand,
-                hoveredTextView: nil,
-                hoveredLinkRange: nil
-            )
-        }
-
-        if let textView = self as? NativeMarkdownSelectableTextView {
-            if let linkRange = textView.nativeMarkdownLinkRange(atWindowPoint: windowPoint) {
-                return NativeMarkdownCursorCoordinator.CursorHit(
-                    decision: .pointingHand,
-                    hoveredTextView: textView,
-                    hoveredLinkRange: linkRange
-                )
+    private func cursor(forHitView hitView: NSView, windowPoint: NSPoint) -> NSCursor? {
+        var current: NSView? = hitView
+        while let view = current {
+            if let button = view as? NativeMermaidPreviewNSButton {
+                return button.wantsPointingHandCursor ? .pointingHand : nil
             }
-
-            return NativeMarkdownCursorCoordinator.CursorHit(
-                decision: .textSelection,
-                hoveredTextView: nil,
-                hoveredLinkRange: nil
-            )
+            if let textView = view as? NativeMarkdownSelectableTextView {
+                if textView.nativeMarkdownLinkRange(atWindowPoint: windowPoint) != nil {
+                    return .pointingHand
+                }
+                return .iBeam
+            }
+            current = view.superview
         }
-
         return nil
     }
+}
 
+private final class WeakScrollViewBox {
+    weak var value: NSScrollView?
+
+    init(_ value: NSScrollView) {
+        self.value = value
+    }
+}
+
+extension NSView {
     func nativeMarkdownClearLinkHovers(except retainedTextView: NativeMarkdownSelectableTextView?) {
         if let textView = self as? NativeMarkdownSelectableTextView, textView !== retainedTextView {
             textView.nativeMarkdownSetHoveredLinkRange(nil)
@@ -163,6 +91,21 @@ private extension NSView {
 
         for subview in subviews {
             subview.nativeMarkdownClearLinkHovers(except: retainedTextView)
+        }
+    }
+
+    fileprivate func nativeMarkdownRefreshHoverState(inVisibleWindowRect visibleWindowRect: NSRect, window: NSWindow) {
+        if let textView = self as? NativeMarkdownSelectableTextView, textView.window === window {
+            let textViewWindowRect = textView.convert(textView.bounds, to: nil)
+            if textViewWindowRect.intersects(visibleWindowRect) {
+                textView.nativeMarkdownRefreshLinkInteractionForCurrentMouseLocation()
+            } else {
+                textView.nativeMarkdownSetHoveredLinkRange(nil)
+            }
+        }
+
+        for subview in subviews {
+            subview.nativeMarkdownRefreshHoverState(inVisibleWindowRect: visibleWindowRect, window: window)
         }
     }
 }

@@ -554,6 +554,7 @@ final class NativeMarkdownSelectableTextView: NSTextView {
     var nativeMarkdownCodeBackgroundColor: NSColor = .textBackgroundColor
     var nativeMarkdownCodeBorderColor: NSColor = .separatorColor
     private var hoveredLinkRange: NSRange?
+    private var hoverTrackingArea: NSTrackingArea?
 
     override var intrinsicContentSize: NSSize {
         guard let layoutManager, let textContainer else {
@@ -583,6 +584,44 @@ final class NativeMarkdownSelectableTextView: NSTextView {
         invalidateIntrinsicContentSize()
     }
 
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        window?.acceptsMouseMovedEvents = true
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverTrackingArea {
+            removeTrackingArea(hoverTrackingArea)
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.activeAlways, .mouseMoved, .mouseEnteredAndExited],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        hoverTrackingArea = area
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        nativeMarkdownSetHoveredLinkRange(linkRange(at: point))
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        nativeMarkdownSetHoveredLinkRange(linkRange(at: point))
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        clearHoveredLink()
+    }
+
+    override func resetCursorRects() {}
+
+    override func cursorUpdate(with event: NSEvent) {}
+
     func nativeMarkdownLinkRange(atWindowPoint windowPoint: NSPoint) -> NSRange? {
         let point = convert(windowPoint, from: nil)
         guard bounds.contains(point) else { return nil }
@@ -590,15 +629,23 @@ final class NativeMarkdownSelectableTextView: NSTextView {
     }
 
     func nativeMarkdownSetHoveredLinkRange(_ linkRange: NSRange?) {
-        guard linkRange != hoveredLinkRange else {
-            return
-        }
-
+        guard linkRange != hoveredLinkRange else { return }
         clearHoveredLink()
         if let linkRange {
             textStorage?.addAttributes(hoverLinkAttributes, range: linkRange)
             hoveredLinkRange = linkRange
         }
+    }
+
+    func nativeMarkdownRefreshLinkInteractionForCurrentMouseLocation() {
+        guard let window else { return }
+        window.acceptsMouseMovedEvents = true
+        let point = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+        guard bounds.contains(point) else {
+            clearHoveredLink()
+            return
+        }
+        nativeMarkdownSetHoveredLinkRange(linkRange(at: point))
     }
 
     private func clearHoveredLink() {

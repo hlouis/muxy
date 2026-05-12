@@ -292,7 +292,7 @@ private struct NativeMermaidPreviewButton: NSViewRepresentable {
         button.font = .systemFont(ofSize: 11, weight: .medium)
         button.contentTintColor = .controlAccentColor
         button.isEnabled = enabled
-        button.cursorEnabled = enabled
+        button.wantsPointingHandCursor = enabled
         button.sizeToFit()
     }
 
@@ -310,13 +310,12 @@ private struct NativeMermaidPreviewButton: NSViewRepresentable {
     }
 }
 
-private final class NativeMermaidPreviewNSButton: NSButton, NativeMarkdownPointingHandCursorRegion {
-    var cursorEnabled = true
+final class NativeMermaidPreviewNSButton: NSButton {
+    var wantsPointingHandCursor = true
 
-    func nativeMarkdownWantsPointingHandCursor(atWindowPoint windowPoint: NSPoint) -> Bool {
-        guard cursorEnabled, isEnabled, !isHidden else { return false }
-        return bounds.contains(convert(windowPoint, from: nil))
-    }
+    override func resetCursorRects() {}
+
+    override func cursorUpdate(with event: NSEvent) {}
 }
 
 @available(macOS 14.0, *)
