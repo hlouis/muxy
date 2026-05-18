@@ -13,6 +13,8 @@ extension Notification.Name {
     static let quickOpen = Notification.Name("MuxyQuickOpen")
     static let findInFiles = Notification.Name("MuxyFindInFiles")
     static let switchWorktree = Notification.Name("MuxySwitchWorktree")
+    static let openProjectPicker = Notification.Name("MuxyOpenProjectPicker")
+    static let focusProjectPickerDefaultLocation = Notification.Name("MuxyFocusProjectPickerDefaultLocation")
     static let saveActiveEditor = Notification.Name("MuxySaveActiveEditor")
     static let windowFullScreenDidChange = Notification.Name("MuxyWindowFullScreenDidChange")
     static let toggleSidebar = Notification.Name("MuxyToggleSidebar")
@@ -22,6 +24,7 @@ extension Notification.Name {
     static let vcsDidRefresh = Notification.Name("MuxyVCSDidRefresh")
     static let externalDragHoverChanged = Notification.Name("MuxyExternalDragHoverChanged")
     static let toggleRichInput = Notification.Name("MuxyToggleRichInput")
+    static let toggleVoiceRecording = Notification.Name("MuxyToggleVoiceRecording")
 }
 
 enum ExternalDragHoverUserInfoKey {

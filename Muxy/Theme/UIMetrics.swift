@@ -37,6 +37,7 @@ enum UIMetrics {
     static var controlSmall: CGFloat { scaled(20) }
     static var controlMedium: CGFloat { scaled(24) }
     static var controlLarge: CGFloat { scaled(32) }
+    static var resizeHandleHitArea: CGFloat { scaled(18) }
 
     static var radiusSM: CGFloat { scaled(4) }
     static var radiusMD: CGFloat { scaled(6) }
@@ -48,6 +49,7 @@ enum UIMetrics {
 
     static var tabBarHeight: CGFloat { scaled(28) }
     static var headerHeight: CGFloat { scaled(36) }
+    static var titleBarHeight: CGFloat { scaled(32) }
 
     static func scaled(_ value: CGFloat) -> CGFloat {
         value * UIScale.shared.multiplier

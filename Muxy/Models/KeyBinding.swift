@@ -9,6 +9,7 @@ private struct ShortcutMetadata {
 
 enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
     case newTab
+    case reopenClosedTerminalTab
     case closeTab
     case renameTab
     case pinUnpinTab
@@ -61,9 +62,12 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
     case toggleAIUsage
     case navigateBack
     case navigateForward
+    case toggleMaximizePane
+    case toggleVoiceRecording
 
     static let allCases: [Self] = [
         .newTab,
+        .reopenClosedTerminalTab,
         .closeTab,
         .renameTab,
         .pinUnpinTab,
@@ -115,6 +119,8 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
         .toggleAIUsage,
         .navigateBack,
         .navigateForward,
+        .toggleMaximizePane,
+        .toggleVoiceRecording,
     ]
 
     var id: String { rawValue }
@@ -122,6 +128,11 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
     private var metadata: ShortcutMetadata {
         switch self {
         case .newTab: ShortcutMetadata(displayName: "New Tab", category: "Tabs", scope: .mainWindow)
+        case .reopenClosedTerminalTab: ShortcutMetadata(
+                displayName: "Reopen Closed Terminal Tab",
+                category: "Tabs",
+                scope: .mainWindow
+            )
         case .closeTab: ShortcutMetadata(displayName: "Close Tab", category: "Tabs", scope: .mainWindow)
         case .renameTab: ShortcutMetadata(displayName: "Rename Tab", category: "Tabs", scope: .mainWindow)
         case .pinUnpinTab: ShortcutMetadata(displayName: "Pin/Unpin Tab", category: "Tabs", scope: .mainWindow)
@@ -182,10 +193,16 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
         case .toggleAIUsage: ShortcutMetadata(displayName: "Toggle AI Usage", category: "App", scope: .mainWindow)
         case .navigateBack: ShortcutMetadata(displayName: "Navigate Back", category: "Navigation", scope: .mainWindow)
         case .navigateForward: ShortcutMetadata(displayName: "Navigate Forward", category: "Navigation", scope: .mainWindow)
+        case .toggleVoiceRecording: ShortcutMetadata(
+                displayName: "Voice Recording",
+                category: "Rich Input",
+                scope: .mainWindow
+            )
         case .toggleThemePicker: ShortcutMetadata(displayName: "Theme Picker", category: "App", scope: .mainWindow)
         case .newProject: ShortcutMetadata(displayName: "New Project", category: "App", scope: .mainWindow)
         case .openProject: ShortcutMetadata(displayName: "Open Project", category: "App", scope: .mainWindow)
         case .reloadConfig: ShortcutMetadata(displayName: "Reload Configuration", category: "App", scope: .global)
+        case .toggleMaximizePane: ShortcutMetadata(displayName: "Toggle Maximize Pane", category: "Panes", scope: .mainWindow)
         }
     }
 
@@ -254,8 +271,9 @@ struct KeyBinding: Codable, Identifiable {
 
     static let defaults: [Self] = [
         Self(action: .newTab, combo: KeyCombo(key: "t", command: true)),
+        Self(action: .reopenClosedTerminalTab, combo: KeyCombo(key: "t", command: true, shift: true)),
         Self(action: .closeTab, combo: KeyCombo(key: "w", command: true)),
-        Self(action: .renameTab, combo: KeyCombo(key: "t", command: true, shift: true)),
+        Self(action: .renameTab, combo: KeyCombo(key: "t", shift: true, option: true)),
         Self(action: .pinUnpinTab, combo: KeyCombo(key: "p", command: true, shift: true)),
         Self(action: .splitRight, combo: KeyCombo(key: "d", command: true)),
         Self(action: .splitDown, combo: KeyCombo(key: "d", command: true, shift: true)),
@@ -305,5 +323,7 @@ struct KeyBinding: Codable, Identifiable {
         Self(action: .toggleAIUsage, combo: KeyCombo(key: "l", command: true)),
         Self(action: .navigateBack, combo: KeyCombo(key: KeyCombo.leftArrowKey, command: true, control: true)),
         Self(action: .navigateForward, combo: KeyCombo(key: KeyCombo.rightArrowKey, command: true, control: true)),
+        Self(action: .toggleMaximizePane, combo: KeyCombo(key: KeyCombo.returnKey, command: true, option: true)),
+        Self(action: .toggleVoiceRecording, combo: KeyCombo(key: "i", command: true, shift: true)),
     ]
 }

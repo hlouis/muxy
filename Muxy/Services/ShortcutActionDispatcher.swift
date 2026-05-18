@@ -44,6 +44,8 @@ struct ShortcutActionDispatcher {
             }
             appState.createTab(projectID: projectID)
             return true
+        case .reopenClosedTerminalTab:
+            return appState.reopenLastClosedTerminalTab()
         case .closeTab:
             guard let projectID = appState.activeProjectID,
                   let area = appState.focusedArea(for: projectID),
@@ -110,7 +112,7 @@ struct ShortcutActionDispatcher {
         case .newProject:
             return false
         case .openProject:
-            ProjectOpenService.openProject(
+            ProjectOpenService.openProjectViaPicker(
                 appState: appState,
                 projectStore: projectStore,
                 worktreeStore: worktreeStore
@@ -168,7 +170,14 @@ struct ShortcutActionDispatcher {
             guard appState.navigation.canGoForward else { return false }
             appState.goForward()
             return true
-        case .selectTab1,
+        case .toggleMaximizePane:
+            guard let projectID = appState.activeProjectID,
+                  let areaID = appState.focusedAreaID(for: projectID)
+            else { return false }
+            appState.toggleMaximize(areaID: areaID, for: projectID)
+            return true
+        case .toggleVoiceRecording,
+             .selectTab1,
              .selectTab2,
              .selectTab3,
              .selectTab4,

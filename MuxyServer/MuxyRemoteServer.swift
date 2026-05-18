@@ -63,8 +63,15 @@ public protocol MuxyRemoteServerDelegate: AnyObject {
     func vcsCreateBranch(projectID: UUID, name: String) async throws
     func vcsCreatePR(projectID: UUID, title: String, body: String, baseBranch: String?, draft: Bool) async throws -> VCSCreatePRResultDTO
     func vcsMergePullRequest(projectID: UUID, number: Int, method: VCSMergeMethodDTO, deleteBranch: Bool) async throws
-    func vcsAddWorktree(projectID: UUID, name: String, branch: String, createBranch: Bool) async throws -> WorktreeDTO
+    func vcsAddWorktree(
+        projectID: UUID,
+        name: String,
+        branch: String,
+        createBranch: Bool,
+        baseBranch: String?
+    ) async throws -> WorktreeDTO
     func vcsRemoveWorktree(projectID: UUID, worktreeID: UUID) async throws
+    func vcsGetDiff(projectID: UUID, filePath: String, forceFull: Bool) async throws -> VCSDiffDTO
     func getProjectLogo(projectID: UUID) -> ProjectLogoDTO?
     func listNotifications() -> [NotificationDTO]
     func markNotificationRead(_ notificationID: UUID)
@@ -72,6 +79,7 @@ public protocol MuxyRemoteServerDelegate: AnyObject {
 
 public final class MuxyRemoteServer: @unchecked Sendable {
     public static let defaultPort: UInt16 = 4865
+    public static let bonjourServiceType: String = "_muxy._tcp"
 
     private let port: UInt16
     private var listener: NWListener?
@@ -169,6 +177,7 @@ public final class MuxyRemoteServer: @unchecked Sendable {
             ws.autoReplyPing = true
             params.defaultProtocolStack.applicationProtocols.insert(ws, at: 0)
             listener = try NWListener(using: params, on: endpointPort)
+            listener?.service = NWListener.Service(name: nil, type: Self.bonjourServiceType)
         } catch {
             logger.error("Failed to create listener: \(error)")
             finishStart(.failure(error))
@@ -603,7 +612,8 @@ public final class MuxyRemoteServer: @unchecked Sendable {
                     projectID: params.projectID,
                     name: params.name,
                     branch: params.branch,
-                    createBranch: params.createBranch
+                    createBranch: params.createBranch,
+                    baseBranch: params.baseBranch
                 )
                 return MuxyResponse(id: request.id, result: .worktrees([worktree]))
             } catch {
@@ -617,6 +627,21 @@ public final class MuxyRemoteServer: @unchecked Sendable {
             do {
                 try await delegate.vcsRemoveWorktree(projectID: params.projectID, worktreeID: params.worktreeID)
                 return MuxyResponse(id: request.id, result: .ok)
+            } catch {
+                return MuxyResponse(id: request.id, error: MuxyError(code: 500, message: error.localizedDescription))
+            }
+
+        case .vcsGetDiff:
+            guard case let .vcsGetDiff(params) = request.params else {
+                return MuxyResponse(id: request.id, error: .invalidParams)
+            }
+            do {
+                let diff = try await delegate.vcsGetDiff(
+                    projectID: params.projectID,
+                    filePath: params.filePath,
+                    forceFull: params.forceFull
+                )
+                return MuxyResponse(id: request.id, result: .vcsDiff(diff))
             } catch {
                 return MuxyResponse(id: request.id, error: MuxyError(code: 500, message: error.localizedDescription))
             }
