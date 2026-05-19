@@ -13,8 +13,6 @@ struct NativeMermaidBlockView: View {
     @State private var parseError: Error?
     @State private var diagramBounds: CGRect = .zero
     @State private var availableWidth: CGFloat = 0
-    @State private var renderedImage: NSImage?
-    @State private var renderKey: String = ""
     @State private var exportError: String?
 
     private var theme: DiagramTheme {
@@ -54,17 +52,16 @@ struct NativeMermaidBlockView: View {
             ZStack {
                 Color(nsColor: palette.background)
 
-                if let renderedImage {
-                    Image(nsImage: renderedImage)
-                        .resizable()
-                        .interpolation(.high)
-                        .antialiased(true)
-                        .scaledToFit()
-                        .scaleEffect(x: 1, y: isERDiagram(source) ? -1 : 1)
-                        .frame(width: max(1, availableWidth), height: fittedDiagramHeight)
-                } else if parseError == nil {
-                    ProgressView()
-                        .controlSize(.small)
+                if parseError == nil {
+                    MermaidDiagramRepresentable(
+                        source: source,
+                        theme: theme,
+                        layoutConfig: layoutConfig,
+                        refreshVersion: refreshVersion,
+                        diagramBounds: $diagramBounds,
+                        parseError: $parseError
+                    )
+                    .frame(width: max(1, availableWidth), height: fittedDiagramHeight)
                 }
             }
             .frame(width: max(1, availableWidth), height: fittedDiagramHeight)
@@ -93,95 +90,10 @@ struct NativeMermaidBlockView: View {
                     .onChange(of: proxy.size.width) { _, width in updateAvailableWidth(width) }
             }
         )
-        .onAppear { renderFittedDiagramIfNeeded() }
-        .onChange(of: source) { _, _ in invalidateAndRender() }
-        .onChange(of: palette) { _, _ in invalidateAndRender() }
-        .onChange(of: refreshVersion) { _, _ in invalidateAndRender() }
-        .onChange(of: availableWidth) { _, _ in renderFittedDiagramIfNeeded() }
     }
 
     private func updateAvailableWidth(_ width: CGFloat) {
         availableWidth = max(0, floor(width))
-    }
-
-    private func invalidateAndRender() {
-        renderedImage = nil
-        diagramBounds = .zero
-        parseError = nil
-        exportError = nil
-        renderKey = ""
-        renderFittedDiagramIfNeeded()
-    }
-
-    private func renderFittedDiagramIfNeeded() {
-        let trimmedSource = source.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedSource.isEmpty else {
-            renderedImage = nil
-            diagramBounds = .zero
-            parseError = nil
-            return
-        }
-        guard availableWidth > 0 else { return }
-
-        let targetWidth = max(1, availableWidth)
-        let keyParts = [
-            String(trimmedSource.hashValue),
-            String(Int(targetWidth)),
-            palette.background.hexRenderKey,
-            palette.foreground.hexRenderKey,
-            palette.accent.hexRenderKey,
-        ]
-        let key = keyParts.joined(separator: "-")
-        guard key != renderKey else { return }
-
-        do {
-            let renderer = MermaidImageRenderer(theme: theme, config: layoutConfig)
-            guard let prepared = try renderer.prepare(from: source) else {
-                renderedImage = nil
-                diagramBounds = .zero
-                parseError = nil
-                renderKey = key
-                return
-            }
-
-            diagramBounds = prepared.bounds
-            let targetHeight = max(120, targetWidth * prepared.bounds.height / prepared.bounds.width)
-            renderer.scale = NSScreen.main?.backingScaleFactor ?? 2.0
-            if let fittedImage = try renderer.renderImage(
-                from: source,
-                size: CGSize(width: targetWidth * renderer.scale, height: targetHeight * renderer.scale)
-            ) {
-                renderedImage = correctedImage(fittedImage)
-            } else {
-                renderedImage = nil
-            }
-            parseError = nil
-            renderKey = key
-        } catch {
-            renderedImage = nil
-            diagramBounds = .zero
-            parseError = error
-            renderKey = key
-        }
-    }
-
-    private func correctedImage(_ image: NSImage) -> NSImage {
-        if isERDiagram(source) {
-            return image.horizontallyMirrored().verticallyFlipped()
-        }
-        return image.verticallyFlipped()
-    }
-
-    private func isERDiagram(_ source: String) -> Bool {
-        firstMermaidStatement(in: source)?.lowercased().hasPrefix("erdiagram") == true
-    }
-
-    private func firstMermaidStatement(in source: String) -> String? {
-        source
-            .components(separatedBy: .newlines)
-            .lazy
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .first { !$0.isEmpty && !$0.hasPrefix("%%") }
     }
 
     private func openDiagramInPreview() {
@@ -207,11 +119,15 @@ struct NativeMermaidBlockView: View {
     }
 
     private func exportPNGData() throws -> Data? {
-        let renderer = MermaidImageRenderer(theme: theme, config: layoutConfig)
-        renderer.scale = 2.0
-        guard let image = try renderer.renderImage(from: source) else { return nil }
-
-        return image.appKitPNGDataWithTopLeftOrientation()
+        let exportLayer = MermaidLayer()
+        exportLayer.theme = theme
+        exportLayer.layoutConfig = layoutConfig
+        exportLayer.source = source
+        guard let image = exportLayer.renderImage(scale: 2.0) else { return nil }
+        guard let tiffData = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiffData)
+        else { return nil }
+        return bitmap.representation(using: .png, properties: [:])
     }
 
     private func openPNGInPreview(_ fileURL: URL) {
@@ -240,6 +156,105 @@ struct NativeMermaidBlockView: View {
         if !didOpen {
             exportError = "Could not open the exported diagram. The PNG was written to \(fileURL.path)."
         }
+    }
+}
+
+@available(macOS 14.0, *)
+private struct MermaidDiagramRepresentable: NSViewRepresentable {
+    let source: String
+    let theme: DiagramTheme
+    let layoutConfig: BeautifulMermaid.LayoutConfig
+    let refreshVersion: Int
+    @Binding var diagramBounds: CGRect
+    @Binding var parseError: Error?
+
+    func makeNSView(context: Context) -> NativeMermaidZoomScrollView {
+        let diagramView = MermaidView()
+        diagramView.theme = theme
+        diagramView.layoutConfig = layoutConfig
+        diagramView.mermaidLayer.onPrepareComplete = { [weak diagramView] in
+            guard let diagramView else { return }
+            publish(from: diagramView)
+        }
+        diagramView.source = source
+
+        let scrollView = NativeMermaidZoomScrollView()
+        scrollView.documentView = diagramView
+        scrollView.diagramView = diagramView
+        scrollView.hasVerticalScroller = false
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .overlay
+        scrollView.borderType = .noBorder
+        scrollView.drawsBackground = false
+        scrollView.allowsMagnification = true
+        scrollView.minMagnification = 1.0
+        scrollView.maxMagnification = 6.0
+        scrollView.magnification = 1.0
+
+        publish(from: diagramView)
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NativeMermaidZoomScrollView, context: Context) {
+        guard let diagramView = scrollView.diagramView else { return }
+        diagramView.theme = theme
+        diagramView.layoutConfig = layoutConfig
+        if diagramView.source != source {
+            scrollView.magnification = 1.0
+            diagramView.source = source
+        } else {
+            diagramView.needsDisplay = true
+        }
+        sizeDocumentToViewport(scrollView)
+        publish(from: diagramView)
+    }
+
+    private func sizeDocumentToViewport(_ scrollView: NSScrollView) {
+        let viewportSize = scrollView.contentView.bounds.size
+        guard viewportSize.width > 0, viewportSize.height > 0 else { return }
+        scrollView.documentView?.frame = NSRect(origin: .zero, size: viewportSize)
+    }
+
+    private func publish(from view: MermaidView) {
+        let bounds = view.diagramBounds
+        let error = view.parseError
+        DispatchQueue.main.async {
+            if diagramBounds != bounds { diagramBounds = bounds }
+            if !errorsEqual(parseError, error) { parseError = error }
+        }
+    }
+
+    private func errorsEqual(_ lhs: Error?, _ rhs: Error?) -> Bool {
+        switch (lhs, rhs) {
+        case (nil, nil): true
+        case let (l?, r?): l.localizedDescription == r.localizedDescription
+        default: false
+        }
+    }
+}
+
+@available(macOS 14.0, *)
+final class NativeMermaidZoomScrollView: NSScrollView {
+    weak var diagramView: MermaidView?
+
+    override func layout() {
+        super.layout()
+        let viewport = contentView.bounds.size
+        guard let documentView, viewport.width > 0, viewport.height > 0 else { return }
+        let unscaledSize = NSSize(width: viewport.width / magnification, height: viewport.height / magnification)
+        if documentView.frame.size != unscaledSize {
+            documentView.frame = NSRect(origin: .zero, size: unscaledSize)
+        }
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        let canScrollHorizontally = abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
+        if magnification <= minMagnification, !canScrollHorizontally, !event.modifierFlags.contains(.command) {
+            nextResponder?.scrollWheel(with: event)
+            return
+        }
+        super.scrollWheel(with: event)
     }
 }
 
@@ -356,84 +371,6 @@ private func blend(foreground: NSColor, background: NSColor, amount: CGFloat) ->
     let a = bg.alphaComponent + (fg.alphaComponent - bg.alphaComponent) * clamped
 
     return NSColor(calibratedRed: r, green: g, blue: b, alpha: a)
-}
-
-private extension NSImage {
-    func pngData() -> Data? {
-        guard let tiffData = tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiffData)
-        else { return nil }
-        return bitmap.representation(using: .png, properties: [:])
-    }
-
-    func appKitPNGDataWithTopLeftOrientation() -> Data? {
-        let orientedImage = NSImage(size: size)
-        orientedImage.lockFocus()
-        guard let context = NSGraphicsContext.current?.cgContext else {
-            orientedImage.unlockFocus()
-            return nil
-        }
-
-        context.translateBy(x: 0, y: size.height)
-        context.scaleBy(x: 1, y: -1)
-        draw(in: NSRect(origin: .zero, size: size))
-        orientedImage.unlockFocus()
-
-        return orientedImage.pngData()
-    }
-
-    func horizontallyMirrored() -> NSImage {
-        guard let cgImage = cgImage(forProposedRect: nil, context: nil, hints: nil) else { return self }
-        let width = cgImage.width
-        let height = cgImage.height
-        guard width > 0, height > 0,
-              let context = CGContext(
-                  data: nil,
-                  width: width,
-                  height: height,
-                  bitsPerComponent: cgImage.bitsPerComponent,
-                  bytesPerRow: 0,
-                  space: cgImage.colorSpace ?? CGColorSpaceCreateDeviceRGB(),
-                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
-              )
-        else { return self }
-
-        context.translateBy(x: CGFloat(width), y: 0)
-        context.scaleBy(x: -1, y: 1)
-        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-        guard let mirrored = context.makeImage() else { return self }
-        return NSImage(cgImage: mirrored, size: size)
-    }
-
-    func verticallyFlipped() -> NSImage {
-        guard let cgImage = cgImage(forProposedRect: nil, context: nil, hints: nil) else { return self }
-        let width = cgImage.width
-        let height = cgImage.height
-        guard width > 0, height > 0,
-              let context = CGContext(
-                  data: nil,
-                  width: width,
-                  height: height,
-                  bitsPerComponent: cgImage.bitsPerComponent,
-                  bytesPerRow: 0,
-                  space: cgImage.colorSpace ?? CGColorSpaceCreateDeviceRGB(),
-                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
-              )
-        else { return self }
-
-        context.translateBy(x: 0, y: CGFloat(height))
-        context.scaleBy(x: 1, y: -1)
-        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-        guard let flipped = context.makeImage() else { return self }
-        return NSImage(cgImage: flipped, size: size)
-    }
-}
-
-private extension NSColor {
-    var hexRenderKey: String {
-        let color = usingColorSpace(.deviceRGB) ?? self
-        return "\(color.redComponent)-\(color.greenComponent)-\(color.blueComponent)-\(color.alphaComponent)"
-    }
 }
 
 #endif

@@ -124,7 +124,7 @@ struct EnclosingNSScrollViewReader: NSViewRepresentable {
         private func enclosingScrollView() -> NSScrollView? {
             var current: NSView? = superview
             while let view = current {
-                if let scrollView = view as? NSScrollView {
+                if let scrollView = view as? NSScrollView, !scrollView.excludedFromMarkdownScrollSync {
                     return scrollView
                 }
                 current = view.superview
@@ -139,6 +139,7 @@ struct EnclosingNSScrollViewReader: NSViewRepresentable {
 
             let candidates = scrollViews(in: contentView).filter { scrollView in
                 guard scrollView.window === window, !scrollView.isHidden else { return false }
+                guard !scrollView.excludedFromMarkdownScrollSync else { return false }
                 let rectInWindow = scrollView.convert(scrollView.bounds, to: nil)
                 return rectInWindow.contains(probePoint)
             }
