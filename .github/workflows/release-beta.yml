@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: release-beta
+  group: release
   cancel-in-progress: false
 
 jobs:
@@ -47,7 +47,8 @@ jobs:
             echo "Error: BETA_VERSION must be X.Y.Z, got '$BETA_BASE'"
             exit 1
           fi
-          BUILD_NUMBER=$(git rev-list --count HEAD)
+          chmod +x scripts/compute-build-number.sh
+          BUILD_NUMBER=$(REPO="${{ github.repository }}" scripts/compute-build-number.sh)
           VERSION="${BETA_BASE}-beta.${BUILD_NUMBER}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
@@ -133,6 +134,7 @@ jobs:
           scripts/build-release.sh \
             --arch "${{ matrix.arch }}" \
             --version "${{ needs.validate.outputs.version }}" \
+            --build-number "${{ needs.validate.outputs.build_number }}" \
             --sign-identity "${{ steps.identity.outputs.name }}" \
             --sparkle-public-key "${{ steps.sparkle.outputs.public_key }}" \
             --sparkle-feed-url "https://github.com/muxy-app/muxy/releases/download/beta-channel/appcast-beta-${{ matrix.arch }}.xml"

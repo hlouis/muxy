@@ -7,6 +7,7 @@ BUILD_DIR="$PROJECT_ROOT/build"
 
 ARCH=""
 VERSION=""
+BUILD_NUMBER_OVERRIDE=""
 SIGN_IDENTITY=""
 SPARKLE_PUBLIC_KEY=""
 SPARKLE_FEED_URL=""
@@ -22,6 +23,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --version)
             VERSION="$2"
+            shift 2
+            ;;
+        --build-number)
+            BUILD_NUMBER_OVERRIDE="$2"
             shift 2
             ;;
         --sign)
@@ -52,7 +57,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$ARCH" || -z "$VERSION" ]]; then
-    echo "Usage: $0 --arch <arm64|x86_64> --version <X.Y.Z[-beta.N]> [--sign | --sign-identity <identity>] [--sparkle-public-key <key>] [--sparkle-feed-url <url>] [--sentry-dsn <dsn>]"
+    echo "Usage: $0 --arch <arm64|x86_64> --version <X.Y.Z[-beta.N]> [--build-number <N>] [--sign | --sign-identity <identity>] [--sparkle-public-key <key>] [--sparkle-feed-url <url>] [--sentry-dsn <dsn>]"
+    exit 1
+fi
+
+if [[ -n "$BUILD_NUMBER_OVERRIDE" && ! "$BUILD_NUMBER_OVERRIDE" =~ ^[0-9]+$ ]]; then
+    echo "Error: --build-number must be a positive integer"
     exit 1
 fi
 
@@ -84,7 +94,11 @@ if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$ ]]; then
 fi
 
 TRIPLE="${ARCH}-apple-macosx14.0"
-BUILD_NUMBER=$(git -C "$PROJECT_ROOT" rev-list --count HEAD)
+if [[ -n "$BUILD_NUMBER_OVERRIDE" ]]; then
+    BUILD_NUMBER="$BUILD_NUMBER_OVERRIDE"
+else
+    BUILD_NUMBER=$(git -C "$PROJECT_ROOT" rev-list --count HEAD)
+fi
 APP_BUNDLE="$BUILD_DIR/Muxy.app"
 DMG_NAME="Muxy-${VERSION}-${ARCH}.dmg"
 

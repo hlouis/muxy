@@ -16,6 +16,10 @@ on:
         required: true
         type: string
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   validate:
     runs-on: macos-26
@@ -50,7 +54,8 @@ jobs:
             echo "Error: tag $BETA_TAG not found"
             exit 1
           fi
-          BUILD_NUMBER=$(git rev-list --count "$BETA_TAG")
+          chmod +x scripts/compute-build-number.sh
+          BUILD_NUMBER=$(REPO="${{ github.repository }}" scripts/compute-build-number.sh --ref "$BETA_TAG")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "next_beta_version=$NEXT" >> "$GITHUB_OUTPUT"
           echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
@@ -136,6 +141,7 @@ jobs:
           scripts/build-release.sh \
             --arch "${{ matrix.arch }}" \
             --version "${{ needs.validate.outputs.version }}" \
+            --build-number "${{ needs.validate.outputs.build_number }}" \
             --sign-identity "${{ steps.identity.outputs.name }}" \
             --sparkle-public-key "${{ steps.sparkle.outputs.public_key }}" \
             --sparkle-feed-url "https://github.com/muxy-app/muxy/releases/latest/download/appcast-${{ matrix.arch }}.xml"
