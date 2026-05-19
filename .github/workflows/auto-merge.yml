@@ -2,7 +2,7 @@ name: Auto Merge
 
 on:
   pull_request_target:
-    types: [labeled, synchronize]
+    types: [labeled]
   check_suite:
     types: [completed]
   status: {}
@@ -13,11 +13,15 @@ permissions:
   checks: read
   statuses: read
 
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number || github.event.check_suite.head_sha || github.event.sha }}
+  cancel-in-progress: false
+
 jobs:
   auto-merge:
     name: Auto Merge
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request_target' || github.event.label.name == 'auto-merge' || github.event.action == 'synchronize'
+    if: github.event_name != 'pull_request_target' || github.event.label.name == 'auto-merge'
     steps:
       - name: Resolve pull requests
         id: prs
@@ -43,8 +47,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           PR_NUMBERS: ${{ steps.prs.outputs.numbers }}
-          LABEL_ACTOR: ${{ github.event.sender.login }}
-          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
 
@@ -70,15 +72,22 @@ jobs:
               continue
             fi
 
-            if [ "$EVENT_NAME" = "pull_request_target" ] && [ "${{ github.event.action }}" = "labeled" ]; then
-              actor_perm=$(gh api "repos/$REPO/collaborators/$LABEL_ACTOR/permission" --jq '.permission' || echo "none")
-              if [ "$actor_perm" != "admin" ] && [ "$actor_perm" != "write" ] && [ "$actor_perm" != "maintain" ]; then
-                echo "Removing auto-merge label: @$LABEL_ACTOR lacks write permission (has: $actor_perm)"
-                gh api -X DELETE "repos/$REPO/issues/$pr/labels/auto-merge" || true
-                gh pr comment "$pr" --repo "$REPO" --body "Auto-merge requires write access. Removing the \`auto-merge\` label."
-                echo "::endgroup::"
-                continue
-              fi
+            label_actor=$(gh api "repos/$REPO/issues/$pr/timeline" \
+              --jq '[.[] | select(.event == "labeled" and .label.name == "auto-merge")] | last | .actor.login')
+
+            if [ -z "$label_actor" ] || [ "$label_actor" = "null" ]; then
+              echo "Could not resolve auto-merge labeler; skipping."
+              echo "::endgroup::"
+              continue
+            fi
+
+            actor_perm=$(gh api "repos/$REPO/collaborators/$label_actor/permission" --jq '.permission' || echo "none")
+            if [ "$actor_perm" != "admin" ] && [ "$actor_perm" != "write" ] && [ "$actor_perm" != "maintain" ]; then
+              echo "Removing auto-merge label: @$label_actor lacks write permission (has: $actor_perm)"
+              gh api -X DELETE "repos/$REPO/issues/$pr/labels/auto-merge" || true
+              gh pr comment "$pr" --repo "$REPO" --body "Auto-merge requires write access. Removing the \`auto-merge\` label."
+              echo "::endgroup::"
+              continue
             fi
 
             mergeable_state=$(echo "$pr_json" | jq -r '.mergeable_state')
