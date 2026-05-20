@@ -20,14 +20,17 @@ final class VoiceRecorder {
     private(set) var transcript: String = ""
 
     @ObservationIgnored private let engine = AVAudioEngine()
+    @ObservationIgnored private let activeRequest = ActiveRequestHolder()
     @ObservationIgnored private var recognizer: SFSpeechRecognizer?
-    @ObservationIgnored private var request: SFSpeechAudioBufferRecognitionRequest?
     @ObservationIgnored private var task: SFSpeechRecognitionTask?
     @ObservationIgnored private var startedAt: Date?
     @ObservationIgnored private var accumulatedBeforePause: TimeInterval = 0
     @ObservationIgnored private var elapsedTimer: Timer?
     @ObservationIgnored private var levelSink: LevelSink?
     @ObservationIgnored private var transcriptSink: TranscriptSink?
+    @ObservationIgnored private var committedTranscript: String = ""
+    @ObservationIgnored private var currentSegment: String = ""
+    @ObservationIgnored private var segmentSequence: Int = 0
 
     func start(locale: Locale) throws {
         guard let recognizer = SFSpeechRecognizer(locale: locale),
@@ -43,17 +46,15 @@ final class VoiceRecorder {
         self.recognizer = recognizer
         recognizer.defaultTaskHint = .dictation
 
-        let request = SFSpeechAudioBufferRecognitionRequest()
-        request.shouldReportPartialResults = true
-        request.requiresOnDeviceRecognition = true
-        self.request = request
-
         let levelSink = LevelSink { [weak self] normalized in
             guard let self else { return }
             self.level = normalized
         }
         self.levelSink = levelSink
-        Self.installTapNonisolated(on: engine.inputNode, request: request, sink: levelSink)
+        let requestHolder = activeRequest
+        Self.installTapNonisolated(on: engine.inputNode, sink: levelSink) { buffer in
+            requestHolder.append(buffer)
+        }
 
         engine.prepare()
         do {
@@ -62,30 +63,31 @@ final class VoiceRecorder {
             engine.inputNode.removeTap(onBus: 0)
             levelSink.detach()
             self.levelSink = nil
-            self.request = nil
             self.recognizer = nil
             throw VoiceRecorderError.engineFailure(error.localizedDescription)
         }
 
-        let transcriptSink = TranscriptSink { [weak self] text in
-            guard let self else { return }
-            self.transcript = text
+        let transcriptSink = TranscriptSink { [weak self] segmentId, text, isFinal in
+            guard let self, segmentId == self.segmentSequence else { return }
+            self.applyPartial(text)
+            if isFinal {
+                self.handleSegmentEnded(segmentId: segmentId)
+            }
         }
         self.transcriptSink = transcriptSink
-        task = Self.startRecognitionTaskNonisolated(
-            recognizer: recognizer,
-            request: request,
-            sink: transcriptSink
-        )
 
         startedAt = Date()
         accumulatedBeforePause = 0
         elapsed = 0
         level = 0
         transcript = ""
+        committedTranscript = ""
+        currentSegment = ""
+        segmentSequence = 0
         isRecording = true
         isPaused = false
         startElapsedTimer()
+        startRecognitionSegment()
     }
 
     func pause() {
@@ -98,6 +100,7 @@ final class VoiceRecorder {
         isPaused = true
         level = 0
         stopElapsedTimer()
+        commitCurrentSegment()
     }
 
     func resume() {
@@ -111,12 +114,24 @@ final class VoiceRecorder {
         startedAt = Date()
         isPaused = false
         startElapsedTimer()
+        startRecognitionSegment()
     }
 
     func finish() -> String {
+        commitCurrentSegment()
         let final = transcript
         teardown()
         return final
+    }
+
+    private func commitCurrentSegment() {
+        activeRequest.take()?.endAudio()
+        task?.finish()
+        committedTranscript = Self.merge(committed: committedTranscript, segment: currentSegment)
+        transcript = committedTranscript
+        currentSegment = ""
+        segmentSequence &+= 1
+        task = nil
     }
 
     func cancel() {
@@ -149,20 +164,73 @@ final class VoiceRecorder {
         if engine.isRunning {
             engine.stop()
         }
-        request?.endAudio()
+        activeRequest.take()?.endAudio()
         task?.cancel()
         levelSink?.detach()
         levelSink = nil
         transcriptSink?.detach()
         transcriptSink = nil
-        request = nil
         task = nil
         recognizer = nil
         startedAt = nil
         accumulatedBeforePause = 0
+        committedTranscript = ""
+        currentSegment = ""
         isRecording = false
         isPaused = false
         level = 0
+    }
+
+    private func startRecognitionSegment() {
+        guard let recognizer, let transcriptSink, isRecording else { return }
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        request.shouldReportPartialResults = true
+        request.requiresOnDeviceRecognition = true
+        activeRequest.set(request)
+        currentSegment = ""
+        let segmentId = segmentSequence
+
+        task = Self.startRecognitionTaskNonisolated(
+            recognizer: recognizer,
+            request: request,
+            sink: transcriptSink,
+            segmentId: segmentId,
+            onError: { [weak self] in
+                Task { @MainActor in self?.handleSegmentEnded(segmentId: segmentId) }
+            }
+        )
+    }
+
+    private func handleSegmentEnded(segmentId: Int) {
+        guard isRecording, segmentId == segmentSequence else { return }
+        committedTranscript = Self.merge(committed: committedTranscript, segment: currentSegment)
+        transcript = committedTranscript
+        currentSegment = ""
+        segmentSequence &+= 1
+        task = nil
+        _ = activeRequest.take()
+        guard !isPaused else { return }
+        startRecognitionSegment()
+    }
+
+    private func applyPartial(_ text: String) {
+        if !currentSegment.isEmpty, !Self.isContinuation(previous: currentSegment, next: text) {
+            committedTranscript = Self.merge(committed: committedTranscript, segment: currentSegment)
+        }
+        currentSegment = text
+        transcript = Self.merge(committed: committedTranscript, segment: text)
+    }
+
+    nonisolated static func isContinuation(previous: String, next: String) -> Bool {
+        if next.hasPrefix(previous) { return true }
+        if previous.hasPrefix(next) { return true }
+        return false
+    }
+
+    nonisolated static func merge(committed: String, segment: String) -> String {
+        if committed.isEmpty { return segment }
+        if segment.isEmpty { return committed }
+        return committed + " " + segment
     }
 
     private func startElapsedTimer() {
@@ -201,24 +269,34 @@ final class VoiceRecorder {
     nonisolated static func startRecognitionTaskNonisolated(
         recognizer: SFSpeechRecognizer,
         request: SFSpeechAudioBufferRecognitionRequest,
-        sink: TranscriptSink
+        sink: TranscriptSink,
+        segmentId: Int,
+        onError: @escaping @Sendable () -> Void
     ) -> SFSpeechRecognitionTask {
-        let handler: @Sendable (SFSpeechRecognitionResult?, Error?) -> Void = { result, _ in
-            guard let result else { return }
-            sink.publish(result.bestTranscription.formattedString)
+        let endedBox = UncheckedBox(EndOnceFlag())
+        let handler: @Sendable (SFSpeechRecognitionResult?, Error?) -> Void = { result, error in
+            if let result {
+                sink.publish(
+                    segmentId: segmentId,
+                    value: result.bestTranscription.formattedString,
+                    isFinal: result.isFinal
+                )
+            }
+            guard error != nil else { return }
+            guard endedBox.value.markEnded() else { return }
+            onError()
         }
         return recognizer.recognitionTask(with: request, resultHandler: handler)
     }
 
     nonisolated static func installTapNonisolated(
         on inputNode: AVAudioInputNode,
-        request: SFSpeechAudioBufferRecognitionRequest,
-        sink: LevelSink
+        sink: LevelSink,
+        forward: @escaping @Sendable (AVAudioPCMBuffer) -> Void
     ) {
         inputNode.removeTap(onBus: 0)
-        let requestBox = UncheckedBox(request)
         let block: @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void = { buffer, _ in
-            requestBox.value.append(buffer)
+            forward(buffer)
             let normalized = normalize(power: averagePower(in: buffer))
             sink.publish(normalized)
         }
@@ -240,21 +318,60 @@ struct UncheckedBox<T>: @unchecked Sendable {
     }
 }
 
+final class ActiveRequestHolder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var request: SFSpeechAudioBufferRecognitionRequest?
+
+    func set(_ request: SFSpeechAudioBufferRecognitionRequest) {
+        lock.lock()
+        self.request = request
+        lock.unlock()
+    }
+
+    func take() -> SFSpeechAudioBufferRecognitionRequest? {
+        lock.lock()
+        let value = request
+        request = nil
+        lock.unlock()
+        return value
+    }
+
+    func append(_ buffer: AVAudioPCMBuffer) {
+        lock.lock()
+        let value = request
+        lock.unlock()
+        value?.append(buffer)
+    }
+}
+
+final class EndOnceFlag {
+    private let lock = NSLock()
+    private var ended = false
+
+    func markEnded() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !ended else { return false }
+        ended = true
+        return true
+    }
+}
+
 final class TranscriptSink: @unchecked Sendable {
     private let lock = NSLock()
-    private var handler: (@MainActor (String) -> Void)?
+    private var handler: (@MainActor (Int, String, Bool) -> Void)?
 
-    init(handler: @escaping @MainActor (String) -> Void) {
+    init(handler: @escaping @MainActor (Int, String, Bool) -> Void) {
         self.handler = handler
     }
 
-    func publish(_ value: String) {
+    func publish(segmentId: Int, value: String, isFinal: Bool) {
         lock.lock()
         let current = handler
         lock.unlock()
         guard let current else { return }
         Task { @MainActor in
-            current(value)
+            current(segmentId, value, isFinal)
         }
     }
 

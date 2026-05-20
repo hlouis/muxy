@@ -26,6 +26,36 @@ struct VoiceRecorderHelperTests {
         #expect(VoiceRecorder.normalize(power: .nan) == 0)
         #expect(VoiceRecorder.normalize(power: -.infinity) == 0)
     }
+
+    @Test("merge returns segment when committed is empty")
+    func mergeIntoEmpty() {
+        #expect(VoiceRecorder.merge(committed: "", segment: "hello world") == "hello world")
+    }
+
+    @Test("merge keeps committed when segment is empty")
+    func mergeEmptySegment() {
+        #expect(VoiceRecorder.merge(committed: "hello", segment: "") == "hello")
+    }
+
+    @Test("merge joins with a single space")
+    func mergeJoins() {
+        #expect(VoiceRecorder.merge(committed: "hello", segment: "world") == "hello world")
+    }
+
+    @Test("isContinuation true when next extends previous")
+    func continuationExtends() {
+        #expect(VoiceRecorder.isContinuation(previous: "hello", next: "hello world"))
+    }
+
+    @Test("isContinuation true when next is a transient shorter revision")
+    func continuationShrinks() {
+        #expect(VoiceRecorder.isContinuation(previous: "hello world", next: "hello"))
+    }
+
+    @Test("isContinuation false when text rotates to new phrase")
+    func continuationRotates() {
+        #expect(!VoiceRecorder.isContinuation(previous: "hello world", next: "how are you"))
+    }
 }
 
 @Suite("VoiceRecordingPanel formatting")
