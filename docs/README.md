@@ -28,14 +28,18 @@ flowchart TB
 | Page | What's in it |
 | --- | --- |
 | [Projects](features/projects.md) | Add/switch projects, IDE launch, CLI, URL scheme |
+| [Project Workspaces](features/project-workspaces.md) | Filter projects into named sidebar workspaces |
 | [Worktrees](features/worktrees.md) | Per-worktree workspaces, setup commands |
 | [Tabs & Splits](features/tabs-and-splits.md) | Tab kinds, splits, drag & drop, pinning |
 | [Terminal](features/terminal.md) | Ghostty config, find, copy/paste, custom commands |
+| [Rich Input](features/rich-input.md) | Multiline prompts, files, images, broadcast send |
+| [Session Restore](features/session-restore.md) | Restore terminal tabs after restart |
 | [Editor](features/editor.md) | Built-in editor, quick open, markdown preview |
 | [Source Control](features/source-control.md) | Git status, diff, branches, pull requests |
 | [File Tree](features/file-tree.md) | Gitignore-aware tree, file ops, drag & drop |
 | [Layouts](features/layouts/README.md) | Declarative `.muxy/layouts/*.yaml` workspaces |
 | [Notifications](features/notifications.md) | OSC sequences, hooks, socket API |
+| [AI Assistant](features/ai-assistant.md) | Draft commit messages and PR text from diffs |
 | [AI Usage](features/ai-usage.md) | Claude Code, Copilot, Codex, Cursor, and more |
 | [Themes](features/themes.md) | Theme picker and Ghostty config |
 | [Remote Server](features/remote-server/README.md) | WebSocket API for mobile clients |

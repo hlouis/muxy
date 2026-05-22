@@ -5,10 +5,10 @@ Every Muxy worktree owns a tree of split panes; each leaf pane holds a stack of 
 ```mermaid
 flowchart TB
   Worktree --> Root[SplitNode]
-  Root --> Left[TabArea<br/>tabs: editor | shell]
+  Root --> Left[TabArea<br/>tabs: editor, shell]
   Root --> Right[Split: vertical]
   Right --> RT[TabArea<br/>tabs: logs]
-  Right --> RB[TabArea<br/>tabs: btop | top]
+  Right --> RB[TabArea<br/>tabs: btop, top]
 ```
 
 Splits nest arbitrarily — the layout is a binary tree of horizontal and vertical splits.
@@ -34,7 +34,7 @@ Splits nest arbitrarily — the layout is a binary tree of horizontal and vertic
 
 ## Renaming, pinning, coloring
 
-- **Rename Tab** — `⌘⇧T`, or double-click the tab title.
+- **Rename Tab** — `Cmd+Opt+T`, or double-click the tab title.
 - **Pin / Unpin** — `⌘⇧P`. Pinned tabs stay leftmost.
 - Right-click → **Color** to apply an accent.
 - Right-click → **Close Others / Close to the Left / Close to the Right**.

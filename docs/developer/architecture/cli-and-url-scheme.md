@@ -6,7 +6,7 @@ External callers can open a project in Muxy through four coordinated paths, all 
 flowchart TB
   CLI["muxy /path<br/>shell wrapper"] --> URL
   CLI --> AE[Apple Events<br/>open -b com.muxy.app]
-  CLI --> Sock["socket: open-project|<path>"]
+  CLI --> Sock["socket: open-project with path"]
   URL["muxy://open?path=…"] --> Delegate
   AE --> Delegate
   Sock --> Server[NotificationSocketServer]

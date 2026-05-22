@@ -10,6 +10,7 @@ flowchart TB
   Add --> Tabs[Open tabs / splits]
   Tabs --> Worktree[Switch worktree<br/>⌘⇧O]
   Tabs --> VCS[Source Control<br/>⌘K]
+  Tabs --> Rich[Rich Input<br/>⌘I]
 ```
 
 ## Requirements
@@ -37,6 +38,7 @@ Projects persist in `~/Library/Application Support/Muxy/projects.json`.
 | Action | Shortcut |
 | --- | --- |
 | New tab | `⌘T` |
+| Rich input | `⌘I` |
 | Split right / down | `⌘D` / `⌘⇧D` |
 | Focus pane | `⌘⌥←/→/↑/↓` |
 | Maximize pane | `⌘⌥↩` |

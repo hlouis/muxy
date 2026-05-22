@@ -12,6 +12,10 @@ Most Ghostty options work — fonts, colors, padding, keybinds, shell integratio
 
 `⌘F` opens an inline search overlay scoped to the focused pane. Enter / Shift-Enter cycle through matches; Escape dismisses.
 
+## Find in files
+
+`Cmd+Shift+F` searches text across the active project. It uses `rg`, supports match case and whole word, and opens the selected match in the editor.
+
 ## Copy and paste
 
 | Action | Shortcut |
@@ -20,6 +24,8 @@ Most Ghostty options work — fonts, colors, padding, keybinds, shell integratio
 | Send `^C` to program | `⌘C` with no selection |
 | Paste | `⌘V` or right-click → Paste |
 | X11 selection paste | Middle-click |
+
+Enable **Settings -> General -> Auto-copy terminal selection** to copy selected terminal text on mouse release.
 
 ## Working directory
 
@@ -36,6 +42,10 @@ Define reusable shell command shortcuts in **Settings → Keyboard Shortcuts →
 - Display name, command, optional icon, optional keybinding.
 - Triggering one creates a new tab and runs the command.
 - Useful for `npm run dev`, `make watch`, `just test`, …
+
+## Rich Input
+
+`Cmd+I` opens a multiline composer for prompts, files, images, and broadcast sends. See [Rich Input](rich-input.md).
 
 ## Right-click menu
 
