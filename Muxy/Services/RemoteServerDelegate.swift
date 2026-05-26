@@ -277,6 +277,7 @@ final class RemoteServerDelegate: MuxyRemoteServerDelegate {
 
     func takeOverPane(paneID: UUID, clientID: UUID, cols: UInt32, rows: UInt32) {
         ensureTerminalView(paneID: paneID)
+        applyPTYSize(paneID: paneID, cols: cols, rows: RemoteTerminalSnapshotBuilder.snapshotRows)
         let snapshotBytes = buildTerminalSnapshot(paneID: paneID)
         PaneOwnershipStore.shared.assign(paneID: paneID, to: clientID)
         if let bytes = snapshotBytes, !bytes.isEmpty {

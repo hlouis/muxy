@@ -2,6 +2,8 @@ import Foundation
 import MuxyShared
 
 enum RemoteTerminalSnapshotBuilder {
+    static let snapshotRows: UInt32 = 100
+
     static func buildBytes(from snapshot: TerminalCellsDTO) -> Data {
         let cols = Int(snapshot.cols)
         let rows = Int(snapshot.rows)
