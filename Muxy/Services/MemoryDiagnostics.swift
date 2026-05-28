@@ -16,7 +16,7 @@ final class MemoryDiagnostics: NSObject {
 
     nonisolated private static let crumbInterval: TimeInterval = 60
 
-    private let writeQueue = DispatchQueue(label: "app.muxy.diagnostics", qos: .utility)
+    nonisolated private let writeQueue = DispatchQueue(label: "app.muxy.diagnostics", qos: .utility)
     private var samplingTimer: DispatchSourceTimer?
     private var crumbTimer: DispatchSourceTimer?
     nonisolated private let disabledForSessionLock = OSAllocatedUnfairLock<Bool>(initialState: false)
@@ -65,7 +65,6 @@ final class MemoryDiagnostics: NSObject {
 
     @objc
     private func handleWillTerminate() {
-        writeCrumbNow()
         markCleanShutdown()
     }
 
@@ -76,29 +75,32 @@ final class MemoryDiagnostics: NSObject {
 
     private func startCrumbTimer() {
         guard crumbTimer == nil else { return }
-        let timer = DispatchSource.makeTimerSource(queue: .main)
-        timer.schedule(deadline: .now() + Self.crumbInterval, repeating: Self.crumbInterval)
-        timer.setEventHandler { [weak self] in
-            MainActor.assumeIsolated {
-                self?.writeCrumbNow()
-            }
+        crumbTimer = Self.makeBackgroundTimer(on: writeQueue, interval: Self.crumbInterval) { [weak self] in
+            self?.writeCrumbNow()
         }
-        timer.resume()
-        crumbTimer = timer
     }
 
-    private func writeCrumbNow() {
+    nonisolated private func writeCrumbNow() {
         guard !disabledForSession else { return }
-        let line = buildPeriodicLine()
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let inputs = self.collectMainActorInputs()
+            self.writeQueue.async { [weak self] in
+                self?.finishWriteCrumb(with: inputs)
+            }
+        }
+    }
+
+    nonisolated private func finishWriteCrumb(with inputs: MainActorInputs) {
+        guard !disabledForSession else { return }
+        let line = buildPeriodicLine(with: inputs)
         let pid = getpid()
         let payload = "pid=\(pid) launchedAt=\(isoFormatter.string(from: MuxyApp.launchDate))\n\(line)\n"
-        writeQueue.async { [weak self] in
-            guard let self, let url = self.crumbURL() else { return }
-            do {
-                try payload.data(using: .utf8)?.write(to: url, options: .atomic)
-            } catch {
-                logger.error("Crumb write failed: \(error.localizedDescription, privacy: .public)")
-            }
+        guard let url = crumbURL() else { return }
+        do {
+            try payload.data(using: .utf8)?.write(to: url, options: .atomic)
+        } catch {
+            logger.error("Crumb write failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -154,7 +156,8 @@ final class MemoryDiagnostics: NSObject {
 
     func exportSnapshot() -> URL? {
         guard let dir = ensureLogDirectory() else { return nil }
-        let report = buildReport(periodic: false)
+        let inputs = collectMainActorInputs()
+        let report = buildReport(with: inputs, periodic: false)
         let stamp = snapshotStampFormatter.string(from: Date())
         let url = dir.appendingPathComponent("diagnostics-snapshot-\(stamp).txt")
         do {
@@ -169,15 +172,9 @@ final class MemoryDiagnostics: NSObject {
 
     private func startPeriodicLogging() {
         guard samplingTimer == nil, !disabledForSession else { return }
-        let timer = DispatchSource.makeTimerSource(queue: .main)
-        timer.schedule(deadline: .now() + Self.samplingInterval, repeating: Self.samplingInterval)
-        timer.setEventHandler { [weak self] in
-            MainActor.assumeIsolated {
-                self?.captureAndAppendPeriodicLine()
-            }
+        samplingTimer = Self.makeBackgroundTimer(on: writeQueue, interval: Self.samplingInterval) { [weak self] in
+            self?.captureAndAppendPeriodicLine()
         }
-        timer.resume()
-        samplingTimer = timer
     }
 
     private func stopPeriodicLogging() {
@@ -185,11 +182,16 @@ final class MemoryDiagnostics: NSObject {
         samplingTimer = nil
     }
 
-    private func captureAndAppendPeriodicLine() {
+    nonisolated private func captureAndAppendPeriodicLine() {
         guard !disabledForSession else { return }
-        let line = buildPeriodicLine()
-        writeQueue.async { [weak self] in
-            self?.appendLine(line)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let inputs = self.collectMainActorInputs()
+            self.writeQueue.async { [weak self] in
+                guard let self, !self.disabledForSession else { return }
+                let line = self.buildPeriodicLine(with: inputs)
+                self.appendLine(line)
+            }
         }
     }
 
@@ -242,8 +244,8 @@ final class MemoryDiagnostics: NSObject {
         }
     }
 
-    private func buildPeriodicLine() -> String {
-        let metrics = collectMetrics()
+    nonisolated private func buildPeriodicLine(with inputs: MainActorInputs) -> String {
+        let metrics = collectMetrics(with: inputs)
         let timestamp = isoFormatter.string(from: Date())
         var parts: [String] = [timestamp]
         parts.append("footprint=\(metrics.footprintMB)MB")
@@ -260,12 +262,12 @@ final class MemoryDiagnostics: NSObject {
         return parts.joined(separator: " ")
     }
 
-    private func buildReport(periodic: Bool) -> String {
-        let metrics = collectMetrics()
+    nonisolated private func buildReport(with inputs: MainActorInputs, periodic: Bool) -> String {
+        let metrics = collectMetrics(with: inputs)
         var out = ""
         out += "Muxy Diagnostics Snapshot\n"
         out += "Generated: \(isoFormatter.string(from: Date()))\n"
-        out += "App Version: \(appVersion())\n"
+        out += "App Version: \(Self.appVersion())\n"
         out += "macOS: \(ProcessInfo.processInfo.operatingSystemVersionString)\n"
         out += "Uptime: \(Int(Date().timeIntervalSince(MuxyApp.launchDate)))s\n"
         out += "\n"
@@ -299,12 +301,11 @@ final class MemoryDiagnostics: NSObject {
         return out
     }
 
-    private func collectMetrics() -> Metrics {
-        let footprint = Self.physFootprintBytes()
-        let peak = Self.peakFootprintBytes()
-        let threads = Self.threadInfo()
-        let fds = Self.fdCount()
+    @MainActor
+    private func collectMainActorInputs() -> MainActorInputs {
         let windows = NSApp?.windows.count ?? 0
+        let surfaceCount = TerminalViewRegistry.shared.liveSurfaceCount
+        let viewCount = TerminalViewRegistry.shared.liveViewCount
 
         var projectCount = 0
         var tabCount = 0
@@ -331,9 +332,23 @@ final class MemoryDiagnostics: NSObject {
             }
         }
 
-        let surfaceCount = TerminalViewRegistry.shared.liveSurfaceCount
-        let viewCount = TerminalViewRegistry.shared.liveViewCount
-        let leak = max(viewCount - paneCount, surfaceCount - paneCount)
+        return MainActorInputs(
+            windowCount: windows,
+            surfaceCount: surfaceCount,
+            viewCount: viewCount,
+            projectCount: projectCount,
+            tabCount: tabCount,
+            paneCount: paneCount,
+            perProject: perProject
+        )
+    }
+
+    nonisolated private func collectMetrics(with inputs: MainActorInputs) -> Metrics {
+        let footprint = Self.physFootprintBytes()
+        let peak = Self.peakFootprintBytes()
+        let threads = Self.threadInfo()
+        let fds = Self.fdCount()
+        let leak = max(inputs.viewCount - inputs.paneCount, inputs.surfaceCount - inputs.paneCount)
 
         return Metrics(
             footprintMB: footprint / 1_048_576,
@@ -341,18 +356,18 @@ final class MemoryDiagnostics: NSObject {
             threadCount: threads.count,
             threadHistogram: threads.histogram,
             fdCount: fds,
-            windowCount: windows,
-            projectCount: projectCount,
-            tabCount: tabCount,
-            paneCount: paneCount,
-            surfaceCount: surfaceCount,
-            viewCount: viewCount,
+            windowCount: inputs.windowCount,
+            projectCount: inputs.projectCount,
+            tabCount: inputs.tabCount,
+            paneCount: inputs.paneCount,
+            surfaceCount: inputs.surfaceCount,
+            viewCount: inputs.viewCount,
             leak: leak,
-            perProject: perProject
+            perProject: inputs.perProject
         )
     }
 
-    private func appVersion() -> String {
+    nonisolated private static func appVersion() -> String {
         let info = Bundle.main.infoDictionary
         let short = info?["CFBundleShortVersionString"] as? String ?? "?"
         let build = info?["CFBundleVersion"] as? String ?? "?"
@@ -393,13 +408,23 @@ final class MemoryDiagnostics: NSObject {
         let perProject: [PerProject]
     }
 
+    private struct MainActorInputs {
+        let windowCount: Int
+        let surfaceCount: Int
+        let viewCount: Int
+        let projectCount: Int
+        let tabCount: Int
+        let paneCount: Int
+        let perProject: [PerProject]
+    }
+
     private struct PerProject {
         let index: Int
         let tabCount: Int
         let paneCount: Int
     }
 
-    private static func physFootprintBytes() -> Int {
+    nonisolated private static func physFootprintBytes() -> Int {
         var info = task_vm_info_data_t()
         var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
         let result = withUnsafeMutablePointer(to: &info) {
@@ -411,13 +436,13 @@ final class MemoryDiagnostics: NSObject {
         return Int(info.phys_footprint)
     }
 
-    private static func peakFootprintBytes() -> Int {
+    nonisolated private static func peakFootprintBytes() -> Int {
         var usage = rusage()
         guard getrusage(RUSAGE_SELF, &usage) == 0 else { return 0 }
         return Int(usage.ru_maxrss)
     }
 
-    private static func threadInfo() -> (count: Int, histogram: [String: Int]) {
+    nonisolated private static func threadInfo() -> (count: Int, histogram: [String: Int]) {
         var threadList: thread_act_array_t?
         var threadCount: mach_msg_type_number_t = 0
         guard task_threads(mach_task_self_, &threadList, &threadCount) == KERN_SUCCESS,
@@ -449,7 +474,19 @@ final class MemoryDiagnostics: NSObject {
         return (Int(threadCount), histogram)
     }
 
-    private static func fdCount() -> Int {
+    nonisolated private static func makeBackgroundTimer(
+        on queue: DispatchQueue,
+        interval: TimeInterval,
+        handler: @escaping @Sendable () -> Void
+    ) -> DispatchSourceTimer {
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + interval, repeating: interval)
+        timer.setEventHandler(handler: handler)
+        timer.resume()
+        return timer
+    }
+
+    nonisolated private static func fdCount() -> Int {
         let pid = getpid()
         let needed = proc_pidinfo(pid, PROC_PIDLISTFDS, 0, nil, 0)
         guard needed > 0 else { return 0 }
