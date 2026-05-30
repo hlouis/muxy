@@ -29,7 +29,7 @@ struct EditorPane: View {
                 editorContentLayer
             }
         }
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .contentShape(Rectangle())
         .simultaneousGesture(TapGesture().onEnded { onFocus() })
         .onReceive(NotificationCenter.default.publisher(for: .findInTerminal)) { _ in
@@ -61,7 +61,7 @@ struct EditorPane: View {
                 }
                 .padding(.horizontal, UIMetrics.spacing4)
                 .padding(.vertical, UIMetrics.spacing3)
-                .background(MuxyTheme.bg.opacity(0.92))
+                .background(MuxyTheme.appBackground.opacity(0.92))
                 .overlay(
                     RoundedRectangle(cornerRadius: UIMetrics.radiusMD)
                         .stroke(MuxyTheme.border, lineWidth: 1)
@@ -127,7 +127,7 @@ struct EditorPane: View {
     }
 
     private var htmlPreviewContainer: some View {
-        HTMLPreviewWebView(filePath: state.filePath, backgroundColor: EditorThemePalette.active.background)
+        HTMLPreviewWebView(filePath: state.filePath, backgroundColor: EditorThemePalette.active.paintedBackground)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .focusable(focused)
             .focusEffectDisabled()
@@ -277,7 +277,7 @@ struct EditorPane: View {
     private var markdownPalette: MarkdownRenderer.Palette {
         let palette = EditorThemePalette.active
         return MarkdownRenderer.Palette(
-            background: palette.background,
+            background: palette.paintedBackground,
             foreground: palette.foreground,
             accent: palette.accent,
             fontFamilyCSS: editorSettings.resolvedMarkdownPreviewFontFamilyCSS,
@@ -302,7 +302,7 @@ struct EditorPane: View {
                 .foregroundStyle(MuxyTheme.fgMuted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
     }
 
     private var showsCodeEditor: Bool {
@@ -441,7 +441,7 @@ private struct EditorMarkdownModePicker: View {
             }
         }
         .padding(UIMetrics.spacing1)
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .overlay(
             RoundedRectangle(cornerRadius: UIMetrics.radiusMD)
                 .stroke(MuxyTheme.border, lineWidth: 1)
@@ -515,7 +515,7 @@ private struct EditorBreadcrumb: View {
         }
         .padding(.horizontal, UIMetrics.spacing5)
         .frame(height: UIMetrics.scaled(32))
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(breadcrumbAccessibilityLabel)
     }

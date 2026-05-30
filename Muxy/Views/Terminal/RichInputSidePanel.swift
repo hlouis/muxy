@@ -26,7 +26,7 @@ struct RichInputSidePanel: View {
                 callbacks: editorCallbacks
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(MuxyTheme.bg)
+            .background(MuxyTheme.appBackground)
             .overlay(alignment: .topLeading) {
                 if state.text.isEmpty {
                     placeholder
@@ -42,10 +42,10 @@ struct RichInputSidePanel: View {
                 )
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(MuxyTheme.bg)
+                .background(MuxyTheme.appBackground)
             }
         }
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .onDrop(of: [UTType.fileURL, UTType.image], isTargeted: nil) { providers in
             handleDrop(providers: providers)
         }
@@ -145,7 +145,7 @@ struct RichInputSidePanel: View {
         }
         .padding(.horizontal, 10)
         .frame(height: 32)
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
     }
 
     private var positionToggleIcon: String {

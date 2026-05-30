@@ -78,7 +78,7 @@ struct PopoverPicker<Item: Identifiable, RowContent: View>: View {
         }
         .frame(width: fixedSize ? UIMetrics.scaled(300) : nil, height: fixedSize ? UIMetrics.scaled(420) : nil)
         .frame(maxWidth: fixedSize ? nil : .infinity, maxHeight: fixedSize ? nil : .infinity)
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
     }
 
     private func footerButton(

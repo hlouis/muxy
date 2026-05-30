@@ -51,6 +51,19 @@ final class MuxyConfig {
         }
     }
 
+    func removeConfigValue(_ key: String) {
+        var content = readGhosttyConfig()
+        var lines = content.components(separatedBy: "\n")
+        guard let index = findConfigLineIndex(for: key, in: lines) else { return }
+        lines.remove(at: index)
+        content = lines.joined(separator: "\n")
+        do {
+            try writeGhosttyConfig(content)
+        } catch {
+            logger.error("Failed to write config: \(error)")
+        }
+    }
+
     func configValue(for key: String) -> String? {
         let lines = readGhosttyConfig().components(separatedBy: .newlines)
         guard let index = findConfigLineIndex(for: key, in: lines) else { return nil }

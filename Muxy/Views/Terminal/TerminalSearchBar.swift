@@ -68,7 +68,7 @@ struct TerminalSearchBar: View {
             }
             .padding(.horizontal, UIMetrics.spacing4)
             .frame(height: UIMetrics.scaled(32))
-            .background(MuxyTheme.bg.opacity(0.95))
+            .background(MuxyTheme.appBackground.opacity(0.95))
 
             Rectangle().fill(MuxyTheme.border).frame(height: 1)
         }

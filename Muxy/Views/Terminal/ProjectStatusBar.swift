@@ -45,7 +45,7 @@ struct ProjectStatusBar: View {
         }
         .padding(.horizontal, 10)
         .frame(height: 28)
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .overlay(
             Rectangle().fill(MuxyTheme.border).frame(height: 1),
             alignment: .top

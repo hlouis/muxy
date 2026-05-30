@@ -105,7 +105,7 @@ struct CreatePRForm: View {
             }
         }
         .padding(UIMetrics.spacing5)
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .onAppear(perform: applyDefaults)
         .onChange(of: availableBaseBranches) { _, newList in
             if !draft.baseBranch.isEmpty, !newList.contains(draft.baseBranch) {

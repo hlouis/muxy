@@ -47,7 +47,7 @@ struct HelpView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(MuxyTheme.bg)
+            .background(MuxyTheme.appBackground)
         }
         .preferredColorScheme(MuxyTheme.colorScheme)
     }

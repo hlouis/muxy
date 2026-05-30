@@ -68,7 +68,7 @@ struct CreateExtensionSheet: View {
         }
         .padding(20)
         .frame(width: 440)
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
     }
 
     private var guideBlock: some View {

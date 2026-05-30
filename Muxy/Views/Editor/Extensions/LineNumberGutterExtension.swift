@@ -97,7 +97,7 @@ final class LineNumberGutterExtension: EditorExtension {
         let palette = EditorThemePalette.active
         view.labelFont = gutterLabelFont(for: context.editorSettings)
         view.foregroundColor = palette.foreground.withAlphaComponent(0.45)
-        view.fillColor = palette.background
+        view.fillColor = palette.paintedBackground
         view.borderColor = palette.foreground.withAlphaComponent(0.08)
         view.lineHeight = max(1, context.viewport.estimatedLineHeight)
         view.topInset = context.textView.textContainerInset.height

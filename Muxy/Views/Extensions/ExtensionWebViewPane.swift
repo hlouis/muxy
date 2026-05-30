@@ -104,6 +104,9 @@ private struct ExtensionWebViewRepresentable: NSViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
+        webView.wantsLayer = true
+        webView.layer?.backgroundColor = NSColor.clear.cgColor
+        webView.underPageBackgroundColor = .clear
         webView.setValue(false, forKey: "drawsBackground")
         webView.load(URLRequest(url: entryURL))
         bridge.attach(to: webView)
@@ -198,7 +201,7 @@ private struct ExtensionWebViewRepresentable: NSViewRepresentable {
         func webView(
             _: WKWebView,
             decidePolicyFor navigationAction: WKNavigationAction,
-            decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+            decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
         ) {
             guard let url = navigationAction.request.url else {
                 decisionHandler(.allow)

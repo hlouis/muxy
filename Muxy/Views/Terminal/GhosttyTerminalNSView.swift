@@ -66,6 +66,8 @@ final class GhosttyTerminalNSView: NSView {
         commandClosesOnExit = closesOnCommandExit
         super.init(frame: .zero)
         wantsLayer = true
+        layer?.isOpaque = false
+        layer?.backgroundColor = CGColor.clear
         setupTrackingArea()
         registerForDraggedTypes([.fileURL, .string])
         setAccessibilityRole(.textArea)
@@ -74,6 +76,8 @@ final class GhosttyTerminalNSView: NSView {
         let label = directoryName.isEmpty ? "Terminal" : "Terminal — \(directoryName)"
         setAccessibilityLabel(label)
     }
+
+    override var isOpaque: Bool { false }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {

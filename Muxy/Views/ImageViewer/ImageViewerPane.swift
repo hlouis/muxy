@@ -11,7 +11,7 @@ struct ImageViewerPane: View {
             Rectangle().fill(MuxyTheme.border).frame(height: 1)
             content
         }
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .contentShape(Rectangle())
         .simultaneousGesture(TapGesture().onEnded { onFocus() })
     }
@@ -104,7 +104,7 @@ private struct ImageViewerBreadcrumb: View {
         }
         .padding(.horizontal, UIMetrics.spacing5)
         .frame(height: UIMetrics.scaled(32))
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
     }
 }
 

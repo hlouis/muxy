@@ -48,7 +48,7 @@ struct VoiceRecordingPanel: View {
         }
         .padding(.horizontal, UIMetrics.spacing6)
         .padding(.vertical, UIMetrics.spacing5)
-        .background(MuxyTheme.bg, in: RoundedRectangle(cornerRadius: UIMetrics.radiusLG))
+        .background(MuxyTheme.appBackground, in: RoundedRectangle(cornerRadius: UIMetrics.radiusLG))
         .overlay(
             RoundedRectangle(cornerRadius: UIMetrics.radiusLG)
                 .stroke(isFocused ? MuxyTheme.accent.opacity(0.6) : MuxyTheme.border, lineWidth: 1)
@@ -179,7 +179,7 @@ struct VoiceRecordingPanel: View {
         .foregroundStyle(MuxyTheme.fgDim)
         .padding(.horizontal, UIMetrics.spacing4)
         .padding(.vertical, UIMetrics.scaled(3))
-        .background(MuxyTheme.bg.opacity(0.85), in: Capsule())
+        .background(MuxyTheme.appBackground.opacity(0.85), in: Capsule())
         .overlay(Capsule().stroke(MuxyTheme.border, lineWidth: 1))
         .opacity(isFocused ? 1 : 0.55)
     }

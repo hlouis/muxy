@@ -8,7 +8,7 @@ struct OverlayPanel<Content: View>: View {
     var body: some View {
         content()
             .frame(width: width, height: height)
-            .background(MuxyTheme.bg)
+            .background(MuxyTheme.appBackground)
             .clipShape(RoundedRectangle(cornerRadius: UIMetrics.radiusXL))
             .overlay(RoundedRectangle(cornerRadius: UIMetrics.radiusXL).stroke(MuxyTheme.border, lineWidth: 1))
             .shadow(color: .black.opacity(0.4), radius: UIMetrics.scaled(20), y: UIMetrics.scaled(8))

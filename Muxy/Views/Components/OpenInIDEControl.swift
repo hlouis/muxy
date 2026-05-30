@@ -132,7 +132,7 @@ struct OpenInIDEControl: View {
         }
         .padding(UIMetrics.spacing4)
         .fixedSize(horizontal: true, vertical: true)
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
     }
 
     private func menuSection(title: String, apps: [IDEIntegrationService.IDEApplication]) -> some View {

@@ -25,7 +25,7 @@ struct DiffAgentMenuButton: View {
             .foregroundStyle(MuxyTheme.fg)
             .padding(.horizontal, UIMetrics.spacing4)
             .frame(height: UIMetrics.controlMedium)
-            .background(MuxyTheme.bg, in: RoundedRectangle(cornerRadius: UIMetrics.radiusSM))
+            .background(MuxyTheme.appBackground, in: RoundedRectangle(cornerRadius: UIMetrics.radiusSM))
             .overlay(RoundedRectangle(cornerRadius: UIMetrics.radiusSM).stroke(MuxyTheme.border, lineWidth: 1))
             .contentShape(RoundedRectangle(cornerRadius: UIMetrics.radiusSM))
         }
@@ -90,7 +90,7 @@ struct DiffCommentComposer: View {
                 .frame(minHeight: DiffCommentLayout.composerMinFieldHeight, alignment: .top)
                 .focused($focused)
                 .padding(UIMetrics.spacing3)
-                .background(MuxyTheme.bg, in: RoundedRectangle(cornerRadius: UIMetrics.radiusSM))
+                .background(MuxyTheme.appBackground, in: RoundedRectangle(cornerRadius: UIMetrics.radiusSM))
                 .overlay(RoundedRectangle(cornerRadius: UIMetrics.radiusSM).stroke(MuxyTheme.border, lineWidth: 1))
                 .padding(UIMetrics.spacing3)
                 .onChange(of: text) { _, newValue in
@@ -123,7 +123,10 @@ struct DiffCommentComposer: View {
                 .foregroundStyle(filled ? Color.white : MuxyTheme.fg)
                 .padding(.horizontal, UIMetrics.spacing4)
                 .frame(height: UIMetrics.controlMedium)
-                .background(filled ? MuxyTheme.accent : MuxyTheme.bg, in: RoundedRectangle(cornerRadius: UIMetrics.radiusSM))
+                .background(
+                    filled ? MuxyTheme.accent : MuxyTheme.appBackground,
+                    in: RoundedRectangle(cornerRadius: UIMetrics.radiusSM)
+                )
                 .overlay(RoundedRectangle(cornerRadius: UIMetrics.radiusSM).stroke(filled ? Color.clear : MuxyTheme.border, lineWidth: 1))
         }
         .buttonStyle(.plain)

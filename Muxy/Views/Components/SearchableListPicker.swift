@@ -63,7 +63,7 @@ struct SearchableListPicker<Item: Identifiable, RowContent: View>: View {
                 }
             }
         }
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .onChange(of: searchText) { highlightedIndex = filteredItems.isEmpty ? nil : 0 }
     }
 

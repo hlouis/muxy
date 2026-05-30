@@ -141,9 +141,11 @@ struct MarkdownWebView: NSViewRepresentable {
         let webView = MarkdownPreviewWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.wantsLayer = true
-        webView.layer?.backgroundColor = palette.background.cgColor
+        webView.layer?.backgroundColor = AppTransparencyPreferences
+            .nsEditorBackgroundColor(palette.background)
+            .cgColor
         webView.setValue(false, forKey: "drawsBackground")
-        webView.underPageBackgroundColor = palette.background
+        webView.underPageBackgroundColor = AppTransparencyPreferences.nsEditorBackgroundColor(palette.background)
         webView.onReloadFromDisk = onReloadFromDisk
         context.coordinator.configure(with: configuration)
         if scrollSyncEnabled {
@@ -359,8 +361,9 @@ struct MarkdownWebView: NSViewRepresentable {
         private func applyPaletteIfNeeded(_ palette: MarkdownRenderer.Palette, to webView: WKWebView) {
             if let lastAppliedPalette, lastAppliedPalette == palette { return }
             lastAppliedPalette = palette
-            webView.layer?.backgroundColor = palette.background.cgColor
-            webView.underPageBackgroundColor = palette.background
+            let background = AppTransparencyPreferences.nsEditorBackgroundColor(palette.background)
+            webView.layer?.backgroundColor = background.cgColor
+            webView.underPageBackgroundColor = background
             let script = MarkdownRenderer.themeApplyScript(palette: palette)
             webView.evaluateJavaScript(script) { _, error in
                 if let error {

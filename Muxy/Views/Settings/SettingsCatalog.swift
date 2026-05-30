@@ -211,6 +211,33 @@ enum SettingsCatalog {
             defaultValue: true
         ),
         SettingsCatalogItem(
+            key: AppTransparencyPreferences.enabledKey,
+            title: "Transparency Mode",
+            description: "Uses translucent app backgrounds and macOS vibrancy.",
+            category: .appearance,
+            section: "Interface",
+            defaultValue: AppTransparencyPreferences.defaultEnabled,
+            aliases: ["vibrancy", "glass", "blur"]
+        ),
+        SettingsCatalogItem(
+            key: AppTransparencyPreferences.intensityKey,
+            title: "Transparency Intensity",
+            description: "Controls how strongly translucent backgrounds reveal macOS vibrancy.",
+            category: .appearance,
+            section: "Interface",
+            defaultValue: AppTransparencyPreferences.defaultIntensity,
+            aliases: ["vibrancy", "glass", "blur", "opacity"]
+        ),
+        SettingsCatalogItem(
+            key: AppTransparencyPreferences.appearanceModeKey,
+            title: "Transparency Colors",
+            description: "Chooses the color scheme used while transparency mode is enabled.",
+            category: .appearance,
+            section: "Interface",
+            defaultValue: AppTransparencyPreferences.defaultAppearanceMode.rawValue,
+            aliases: ["vibrancy", "glass", "blur", "theme", "system", "light", "dark"]
+        ),
+        SettingsCatalogItem(
             key: "muxy.theme.light",
             title: "Light Terminal Theme",
             description: "Chooses the terminal theme for light appearance.",

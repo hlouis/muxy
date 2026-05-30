@@ -100,10 +100,11 @@ private struct ExtensionConsentSheetHost: NSViewRepresentable {
     }
 }
 
+@MainActor
 private final class ExtensionConsentSheetWindow: NSPanel {
     private(set) var currentRequest: ExtensionConsentRequest
     private let onChoice: (ExtensionConsentChoice) -> Void
-    private let hostingView: NSHostingView<ExtensionConsentDialog>
+    private let hostingView: NSHostingView<AnyView>
 
     init(
         request: ExtensionConsentRequest,
@@ -111,8 +112,7 @@ private final class ExtensionConsentSheetWindow: NSPanel {
     ) {
         currentRequest = request
         self.onChoice = onChoice
-        let dialog = ExtensionConsentDialog(request: request, onChoice: onChoice)
-        let host = NSHostingView(rootView: dialog)
+        let host = NSHostingView(rootView: Self.rootView(request: request, onChoice: onChoice))
         host.translatesAutoresizingMaskIntoConstraints = true
         hostingView = host
 
@@ -130,15 +130,14 @@ private final class ExtensionConsentSheetWindow: NSPanel {
         isMovable = false
         isMovableByWindowBackground = false
         hasShadow = true
-        isOpaque = false
-        backgroundColor = .clear
+        AppWindowBackgroundConfigurator.apply(to: self, enabled: AppTransparencyPreferences.isEnabled)
         contentView = host
         host.frame = NSRect(x: 0, y: 0, width: width, height: height)
     }
 
     func updateRequest(_ request: ExtensionConsentRequest) {
         currentRequest = request
-        hostingView.rootView = ExtensionConsentDialog(request: request, onChoice: onChoice)
+        hostingView.rootView = Self.rootView(request: request, onChoice: onChoice)
         let fitting = hostingView.fittingSize
         let newSize = NSSize(width: max(520, fitting.width), height: fitting.height)
         setContentSize(newSize)
@@ -149,6 +148,22 @@ private final class ExtensionConsentSheetWindow: NSPanel {
 
     override func cancelOperation(_: Any?) {
         onChoice(.denyOnce)
+    }
+
+    private static func rootView(
+        request: ExtensionConsentRequest,
+        onChoice: @escaping (ExtensionConsentChoice) -> Void
+    ) -> AnyView {
+        AnyView(
+            ZStack {
+                AppWindowVibrancyBackground(
+                    enabled: AppTransparencyPreferences.isEnabled,
+                    intensity: AppTransparencyPreferences.intensity
+                )
+                ExtensionConsentDialog(request: request, onChoice: onChoice)
+            }
+            .preferredColorScheme(AppTransparencyPreferences.preferredColorScheme())
+        )
     }
 }
 
@@ -165,7 +180,7 @@ struct ExtensionConsentDialog: View {
         }
         .padding(20)
         .frame(maxWidth: 520, alignment: .leading)
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .stroke(MuxyTheme.border, lineWidth: 1)

@@ -79,7 +79,7 @@ struct FileTreeView: View {
                 }
             }
         }
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .background(keyCaptureLayer)
         .background(keyboardShortcuts)
         .contentShape(Rectangle())

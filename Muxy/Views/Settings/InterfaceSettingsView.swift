@@ -8,6 +8,12 @@ struct InterfaceSettingsView: View {
     @AppStorage(SidebarCollapsedStyle.storageKey) private var sidebarCollapsedStyle = SidebarCollapsedStyle.defaultValue.rawValue
     @AppStorage(SidebarExpandedStyle.storageKey) private var sidebarExpandedStyle = SidebarExpandedStyle.defaultValue.rawValue
     @AppStorage("muxy.showStatusBar") private var showStatusBar = true
+    @AppStorage(AppTransparencyPreferences.enabledKey)
+    private var transparencyEnabled = AppTransparencyPreferences.defaultEnabled
+    @AppStorage(AppTransparencyPreferences.intensityKey)
+    private var transparencyIntensity = AppTransparencyPreferences.defaultIntensity
+    @AppStorage(AppTransparencyPreferences.appearanceModeKey)
+    private var transparencyAppearanceMode = AppTransparencyPreferences.defaultAppearanceMode.rawValue
 
     var body: some View {
         SettingsContainer {
@@ -24,6 +30,53 @@ struct InterfaceSettingsView: View {
                 }
 
                 SettingsToggleRow(label: "Show Status Bar", isOn: $showStatusBar)
+
+                SettingsToggleRow(
+                    label: "Transparency Mode",
+                    isOn: Binding(
+                        get: { transparencyEnabled },
+                        set: { enabled in
+                            AppTransparencyPreferences.setEnabled(enabled)
+                        }
+                    )
+                )
+
+                SettingsRow("Transparency Colors") {
+                    Picker("", selection: Binding(
+                        get: { transparencyAppearanceMode },
+                        set: { rawValue in
+                            guard let mode = AppTransparencyPreferences.AppearanceMode(rawValue: rawValue) else { return }
+                            AppTransparencyPreferences.setAppearanceMode(mode)
+                        }
+                    )) {
+                        ForEach(AppTransparencyPreferences.AppearanceMode.allCases) { mode in
+                            Text(mode.title).tag(mode.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: SettingsMetrics.controlWidth)
+                    .disabled(!transparencyEnabled)
+                }
+
+                SettingsRow("Transparency Intensity") {
+                    HStack(spacing: 8) {
+                        Slider(
+                            value: Binding(
+                                get: { transparencyIntensity },
+                                set: { value in AppTransparencyPreferences.setIntensity(value) }
+                            ),
+                            in: AppTransparencyPreferences.minIntensity ... AppTransparencyPreferences.maxIntensity
+                        )
+                        .frame(width: SettingsMetrics.controlWidth - 50)
+                        .disabled(!transparencyEnabled)
+
+                        Text("\(Int((transparencyIntensity * 100).rounded()))%")
+                            .font(.system(size: SettingsMetrics.labelFontSize, design: .monospaced))
+                            .foregroundStyle(transparencyEnabled ? SettingsStyle.foreground : SettingsStyle.dimForeground)
+                            .frame(width: 42, alignment: .trailing)
+                    }
+                }
             }
 
             SettingsSection("Sidebar") {

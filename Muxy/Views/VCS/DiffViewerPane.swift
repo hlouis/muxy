@@ -20,7 +20,7 @@ struct DiffViewerPane: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .contentShape(Rectangle())
         .simultaneousGesture(TapGesture().onEnded { onFocus() })
         .onAppear {
@@ -260,7 +260,7 @@ private struct DiffViewerBreadcrumb: View {
         }
         .padding(.horizontal, UIMetrics.spacing5)
         .frame(height: UIMetrics.scaled(32))
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
     }
 
     private var wrapToggle: some View {
@@ -327,7 +327,7 @@ private struct DiffViewerBreadcrumb: View {
                 .font(.system(size: UIMetrics.fontCaption, weight: .semibold))
                 .foregroundStyle(selected ? MuxyTheme.fg : MuxyTheme.fgMuted)
                 .frame(width: UIMetrics.scaled(22), height: UIMetrics.controlSmall)
-                .background(selected ? MuxyTheme.bg : Color.clear)
+                .background(selected ? MuxyTheme.appBackground : Color.clear)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -436,7 +436,7 @@ private struct DiffFileCard: View {
             }
         }
         .frame(height: cardHeight, alignment: .top)
-        .background(MuxyTheme.bg, in: RoundedRectangle(cornerRadius: UIMetrics.radiusMD))
+        .background(MuxyTheme.appBackground, in: RoundedRectangle(cornerRadius: UIMetrics.radiusMD))
         .overlay(
             RoundedRectangle(cornerRadius: UIMetrics.radiusMD)
                 .stroke(isActive ? MuxyTheme.accent.opacity(0.45) : MuxyTheme.border, lineWidth: 1)
@@ -851,7 +851,7 @@ private struct DiffColumn: View {
     }
 
     private var gutterContinuation: some View {
-        Color(EditorThemePalette.active.background)
+        Color(EditorThemePalette.active.paintedBackground)
             .frame(width: gutterWidth)
             .overlay(alignment: .trailing) {
                 Color(EditorThemePalette.active.foreground.withAlphaComponent(0.08))
@@ -934,7 +934,7 @@ private struct DiffColumnEditor: View {
             passesScrollWheelToParent: true,
             onFocus: {}
         )
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .onAppear(perform: sync)
         .onChange(of: signature) { _, _ in sync() }
         .onReceive(NotificationCenter.default.publisher(for: .themeDidChange)) { _ in themeRevision &+= 1 }
@@ -1087,7 +1087,7 @@ private struct DiffViewerSidebar: View {
             Rectangle().fill(MuxyTheme.border).frame(height: 1)
             DiffViewerStats(stagedFiles: state.stagedFiles, unstagedFiles: state.unstagedFiles)
         }
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
     }
 
     private var header: some View {

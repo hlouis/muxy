@@ -399,7 +399,7 @@ struct CodeEditorView: NSViewRepresentable {
         let font = resolvedFont
         let palette = EditorThemePalette.active
         textView.font = font
-        textView.backgroundColor = palette.background
+        textView.backgroundColor = palette.paintedBackground
         textView.insertionPointColor = palette.foreground
         textView.textColor = palette.foreground
         textView.typingAttributes = [
@@ -412,9 +412,9 @@ struct CodeEditorView: NSViewRepresentable {
 
         scrollView.autohidesScrollers = showsVerticalScroller
         scrollView.drawsBackground = true
-        scrollView.backgroundColor = palette.background
+        scrollView.backgroundColor = palette.paintedBackground
         scrollView.contentView.drawsBackground = true
-        scrollView.contentView.backgroundColor = palette.background
+        scrollView.contentView.backgroundColor = palette.paintedBackground
         scrollView.borderType = .noBorder
         scrollView.contentView.postsBoundsChangedNotifications = true
         scrollView.contentView.postsFrameChangedNotifications = true
@@ -614,7 +614,7 @@ struct CodeEditorView: NSViewRepresentable {
     private func applyThemeAndFont(scrollView: NSScrollView, textView: NSTextView, font: NSFont) {
         let palette = EditorThemePalette.active
         let fgColor = palette.foreground
-        let bgColor = palette.background
+        let bgColor = palette.paintedBackground
 
         if !scrollView.drawsBackground {
             scrollView.drawsBackground = true
@@ -1009,7 +1009,7 @@ struct CodeEditorView: NSViewRepresentable {
 
             let container = ViewportContainerView()
             container.wantsLayer = true
-            container.layer?.backgroundColor = EditorThemePalette.active.background.cgColor
+            container.layer?.backgroundColor = EditorThemePalette.active.paintedBackground.cgColor
             let height = max(viewport.totalDocumentHeight, scrollView.contentView.bounds.height)
             let width = max(scrollView.contentSize.width, textView.frame.width)
             container.frame = NSRect(x: 0, y: 0, width: width, height: height)

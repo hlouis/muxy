@@ -3,7 +3,9 @@ import SwiftUI
 
 enum MuxyTheme {
     @MainActor static var bg: Color { snapshot.bg }
+    @MainActor static var appBackground: Color { AppTransparencyPreferences.color(snapshot.bg) }
     @MainActor static var nsBg: NSColor { snapshot.nsBg }
+    @MainActor static var nsAppBackground: NSColor { AppTransparencyPreferences.nsBackgroundColor(snapshot.nsBg) }
     @MainActor static var nsFg: NSColor { snapshot.nsFg }
     @MainActor static var nsFgMuted: NSColor { snapshot.nsFgMuted }
     @MainActor static var fg: Color { snapshot.fg }
@@ -35,17 +37,28 @@ enum MuxyTheme {
 
     @MainActor private static var cachedVersion: Int = -1
     @MainActor private static var cachedAppearance: ThemeAppearance = .light
+    @MainActor private static var cachedTransparencyEnabled = false
+    @MainActor private static var cachedTransparencyAppearanceMode = AppTransparencyPreferences.defaultAppearanceMode
     @MainActor private static var cachedSnapshot: Snapshot?
 
     @MainActor private static var snapshot: Snapshot {
         let version = GhosttyService.shared.configVersion
         let appearance = ThemeService.shared.activeAppearance()
-        if let cachedSnapshot, cachedVersion == version, cachedAppearance == appearance {
+        let transparencyEnabled = AppTransparencyPreferences.isEnabled
+        let transparencyAppearanceMode = AppTransparencyPreferences.appearanceMode
+        if let cachedSnapshot,
+           cachedVersion == version,
+           cachedAppearance == appearance,
+           cachedTransparencyEnabled == transparencyEnabled,
+           cachedTransparencyAppearanceMode == transparencyAppearanceMode
+        {
             return cachedSnapshot
         }
         let newSnapshot = Snapshot(from: GhosttyService.shared, appearance: appearance)
         cachedVersion = version
         cachedAppearance = appearance
+        cachedTransparencyEnabled = transparencyEnabled
+        cachedTransparencyAppearanceMode = transparencyAppearanceMode
         cachedSnapshot = newSnapshot
         return newSnapshot
     }
@@ -83,7 +96,7 @@ extension MuxyTheme {
 
         @MainActor
         init(from service: GhosttyService, appearance: ThemeAppearance) {
-            let resolvedPalette = EditorThemePalette.resolve(
+            let resolvedPalette = AppTransparencyPreferences.paletteIfNeeded() ?? EditorThemePalette.resolve(
                 preview: ThemeService.shared.activeThemePreview(for: appearance),
                 fallbackBackground: service.backgroundColor,
                 fallbackForeground: service.foregroundColor,

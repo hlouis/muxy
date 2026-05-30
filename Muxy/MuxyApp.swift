@@ -12,6 +12,12 @@ struct MuxyApp: App {
     @State private var projectGroupStore: ProjectGroupStore
     @State private var vcsWorktreeAutoRefresher: VCSWorktreeAutoRefresher
     @State private var didStartDeferredServices = false
+    @AppStorage(AppTransparencyPreferences.enabledKey)
+    private var transparencyEnabled = AppTransparencyPreferences.defaultEnabled
+    @AppStorage(AppTransparencyPreferences.intensityKey)
+    private var transparencyIntensity = AppTransparencyPreferences.defaultIntensity
+    @AppStorage(AppTransparencyPreferences.appearanceModeKey)
+    private var transparencyAppearanceMode = AppTransparencyPreferences.defaultAppearanceMode.rawValue
 
     init() {
         LaunchArgumentGuard.terminateIfNeeded()
@@ -58,7 +64,8 @@ struct MuxyApp: App {
                 .environment(ThemeService.shared)
                 .environment(ExtensionStore.shared)
                 .environment(ExtensionSettingsStore.shared)
-                .preferredColorScheme(MuxyTheme.colorScheme)
+                .preferredColorScheme(AppTransparencyPreferences.preferredColorScheme())
+                .background(AppWindowVibrancyBackground(enabled: transparencyEnabled, intensity: transparencyIntensity))
                 .onAppear {
                     startDeferredServicesIfNeeded()
                     NotificationStore.shared.appState = appState
@@ -151,13 +158,17 @@ struct MuxyApp: App {
                 .environment(worktreeStore)
                 .environment(projectGroupStore)
                 .environment(GhosttyService.shared)
-                .preferredColorScheme(MuxyTheme.colorScheme)
+                .preferredColorScheme(AppTransparencyPreferences.preferredColorScheme())
+                .background(AppWindowVibrancyBackground(enabled: transparencyEnabled, intensity: transparencyIntensity))
+                .background(AppWindowBackgroundConfigurator(enabled: transparencyEnabled))
         }
         .defaultSize(width: 700, height: 600)
 
         Window("Muxy Help", id: "help") {
             HelpView()
-                .preferredColorScheme(MuxyTheme.colorScheme)
+                .preferredColorScheme(AppTransparencyPreferences.preferredColorScheme())
+                .background(AppWindowVibrancyBackground(enabled: transparencyEnabled, intensity: transparencyIntensity))
+                .background(AppWindowBackgroundConfigurator(enabled: transparencyEnabled))
         }
         .defaultSize(width: 820, height: 580)
     }
@@ -276,6 +287,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @MainActor
     func applicationDidFinishLaunching(_ notification: Notification) {
         UserDefaults.standard.register(defaults: ["ApplePressAndHoldEnabled": false])
+        AppTransparencyPreferences.registerDefaults()
         SentryService.shared.start()
         NSWindow.allowsAutomaticWindowTabbing = false
         NSApp.setActivationPolicy(.regular)
@@ -285,6 +297,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         GhosttyService.shared.applyInitialColorScheme()
         ThemeService.shared.applyDefaultThemeIfNeeded()
         ThemeService.shared.migrateToPairedThemeIfNeeded()
+        AppTransparencyPreferences.applyCurrentModeToTerminal()
         observeSystemAppearanceChanges()
         ModifierKeyMonitor.shared.start()
         DesktopNotificationService.shared.prepare()
@@ -454,8 +467,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.settingsWindow?.backgroundColor = MuxyTheme.nsBg
-                self?.extensionsWindow?.backgroundColor = MuxyTheme.nsBg
+                if let window = self?.settingsWindow {
+                    AppWindowBackgroundConfigurator.apply(
+                        to: window,
+                        enabled: AppTransparencyPreferences.isEnabled
+                    )
+                }
+                if let window = self?.extensionsWindow {
+                    AppWindowBackgroundConfigurator.apply(
+                        to: window,
+                        enabled: AppTransparencyPreferences.isEnabled
+                    )
+                }
             }
         }
     }
@@ -535,6 +558,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 struct WindowConfigurator: NSViewRepresentable {
     let configVersion: Int
     let uiScalePreset: UIScale.Preset
+    let transparencyEnabled: Bool
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -552,7 +576,7 @@ struct WindowConfigurator: NSViewRepresentable {
             w.isMovable = false
             w.isMovableByWindowBackground = false
             Self.disableWindowTabbing(for: w)
-            Self.applyWindowBackground(w)
+            Self.applyWindowBackground(w, transparencyEnabled: transparencyEnabled)
             Self.repositionTrafficLights(in: w)
             Self.hideTitlebarDecorationView(in: w)
             Self.neutralizeSafeAreaInsets(in: w)
@@ -564,15 +588,12 @@ struct WindowConfigurator: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSView, context: Context) {
         guard let w = nsView.window else { return }
-        Self.applyWindowBackground(w)
+        Self.applyWindowBackground(w, transparencyEnabled: transparencyEnabled)
         Self.repositionTrafficLights(in: w)
     }
 
-    private static func applyWindowBackground(_ window: NSWindow) {
-        window.isOpaque = false
-        window.backgroundColor = .clear
-        window.contentView?.wantsLayer = true
-        window.contentView?.layer?.backgroundColor = MuxyTheme.nsBg.cgColor
+    private static func applyWindowBackground(_ window: NSWindow, transparencyEnabled: Bool) {
+        AppWindowBackgroundConfigurator.apply(to: window, enabled: transparencyEnabled)
     }
 
     static func disableWindowTabbing(for window: NSWindow) {

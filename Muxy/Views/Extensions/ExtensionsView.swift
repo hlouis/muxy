@@ -14,7 +14,7 @@ struct ExtensionsView: View {
             content
         }
         .frame(minWidth: 760, minHeight: 560)
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .foregroundStyle(MuxyTheme.fg)
         .tint(MuxyTheme.accent)
         .preferredColorScheme(MuxyTheme.colorScheme)
@@ -116,7 +116,7 @@ struct ExtensionsView: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 56)
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
     }
 }
 
@@ -793,7 +793,7 @@ private struct ExtensionGrantRuleRow: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .background(MuxyTheme.bg.opacity(0.5), in: RoundedRectangle(cornerRadius: 5))
+        .background(MuxyTheme.appBackground.opacity(0.5), in: RoundedRectangle(cornerRadius: 5))
     }
 
     private var decisionBadge: some View {

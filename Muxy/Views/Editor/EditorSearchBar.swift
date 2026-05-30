@@ -40,7 +40,7 @@ struct EditorSearchBar: View {
             }
             .padding(.horizontal, UIMetrics.spacing4)
             .padding(.vertical, UIMetrics.spacing3)
-            .background(MuxyTheme.bg.opacity(0.95))
+            .background(MuxyTheme.appBackground.opacity(0.95))
 
             Rectangle().fill(MuxyTheme.border).frame(height: 1)
         }
@@ -177,7 +177,7 @@ private struct EditorSearchTextButtonStyle: ButtonStyle {
             .foregroundStyle(isEnabled ? MuxyTheme.fg : MuxyTheme.fgDim)
             .padding(.horizontal, UIMetrics.spacing4)
             .frame(height: UIMetrics.scaled(22))
-            .background(configuration.isPressed ? MuxyTheme.surface : MuxyTheme.bg)
+            .background(configuration.isPressed ? MuxyTheme.surface : MuxyTheme.appBackground)
             .overlay(
                 RoundedRectangle(cornerRadius: UIMetrics.radiusSM)
                     .strokeBorder(MuxyTheme.border, lineWidth: 1)

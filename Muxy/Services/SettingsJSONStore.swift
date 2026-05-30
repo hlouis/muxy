@@ -201,6 +201,7 @@ enum SettingsJSONStore {
             SidebarCollapsedStyle.storageKey: Set(SidebarCollapsedStyle.allCases.map(\.rawValue)),
             SidebarExpandedStyle.storageKey: Set(SidebarExpandedStyle.allCases.map(\.rawValue)),
             "muxy.vcsDisplayMode": Set(VCSDisplayMode.allCases.map(\.rawValue)),
+            AppTransparencyPreferences.appearanceModeKey: Set(AppTransparencyPreferences.AppearanceMode.allCases.map(\.rawValue)),
             RichInputPreferences.positionKey: Set(RichInputPanelPosition.allCases.map(\.rawValue)),
             "editor.defaultEditor": Set(EditorSettings.DefaultEditor.allCases.map(\.rawValue)),
             "editor.htmlDefaultViewMode": Set(EditorMarkdownViewMode.allCases.map(\.rawValue)),
@@ -239,6 +240,9 @@ enum SettingsJSONStore {
             guard (Double(EditorSettings.minLineHeightMultiplier) ... Double(EditorSettings.maxLineHeightMultiplier))
                 .contains(value)
             else { throw SettingsJSONError.invalidValue(key) }
+        case AppTransparencyPreferences.intensityKey:
+            guard (AppTransparencyPreferences.minIntensity ... AppTransparencyPreferences.maxIntensity).contains(value)
+            else { throw SettingsJSONError.invalidValue(key) }
         default:
             return
         }
@@ -249,6 +253,9 @@ enum SettingsJSONStore {
         return switch item.key {
         case SentryConsent.storageKey: SentryService.shared.consent?.rawValue ?? ""
         case "muxy.ui.scale": UIScale.shared.preset.rawValue
+        case AppTransparencyPreferences.enabledKey: AppTransparencyPreferences.isEnabled
+        case AppTransparencyPreferences.intensityKey: AppTransparencyPreferences.intensity
+        case AppTransparencyPreferences.appearanceModeKey: AppTransparencyPreferences.appearanceMode.rawValue
         case "muxy.theme.light": ThemeService.shared.currentLightThemeName() ?? ThemeService.defaultThemeName
         case "muxy.theme.dark": ThemeService.shared.currentDarkThemeName() ?? ThemeService.defaultThemeName
         case ProjectPickerDefaultLocation.storageKey: UserDefaults.standard.string(forKey: item.key) ?? ""
@@ -316,6 +323,17 @@ enum SettingsJSONStore {
         case "muxy.ui.scale":
             guard let rawValue = value as? String, let preset = UIScale.Preset(rawValue: rawValue) else { return false }
             UIScale.shared.preset = preset
+        case AppTransparencyPreferences.enabledKey:
+            guard let enabled = value as? Bool else { return false }
+            AppTransparencyPreferences.setEnabled(enabled)
+        case AppTransparencyPreferences.intensityKey:
+            guard let number = value as? NSNumber else { return false }
+            AppTransparencyPreferences.setIntensity(number.doubleValue)
+        case AppTransparencyPreferences.appearanceModeKey:
+            guard let rawValue = value as? String,
+                  let mode = AppTransparencyPreferences.AppearanceMode(rawValue: rawValue)
+            else { return false }
+            AppTransparencyPreferences.setAppearanceMode(mode)
         case "muxy.theme.light":
             guard let value = value as? String else { return false }
             ThemeService.shared.applyLightTheme(value)

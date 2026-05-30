@@ -213,7 +213,7 @@ struct PullRequestRow: View {
         }
         .padding(.horizontal, UIMetrics.spacing5)
         .frame(height: UIMetrics.scaled(44))
-        .background(hovered ? MuxyTheme.surface : MuxyTheme.bg)
+        .background(hovered ? MuxyTheme.surface : MuxyTheme.appBackground)
         .contentShape(Rectangle())
         .onHover { hovered = $0 }
         .onTapGesture(perform: onCheckout)
@@ -292,7 +292,7 @@ struct PullRequestRow: View {
             }
             .foregroundStyle(MuxyTheme.fg)
             .frame(width: UIMetrics.scaled(22), height: UIMetrics.scaled(22))
-            .background(MuxyTheme.bg, in: RoundedRectangle(cornerRadius: UIMetrics.radiusSM))
+            .background(MuxyTheme.appBackground, in: RoundedRectangle(cornerRadius: UIMetrics.radiusSM))
             .overlay(RoundedRectangle(cornerRadius: UIMetrics.radiusSM).stroke(MuxyTheme.border, lineWidth: 1))
         }
         .menuStyle(.borderlessButton)

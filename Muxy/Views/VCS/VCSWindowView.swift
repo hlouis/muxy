@@ -23,6 +23,7 @@ struct VCSWindowView: View {
             }
         }
         .frame(minWidth: 500, minHeight: 400)
+        .background(MuxyTheme.appBackground)
         .preferredColorScheme(MuxyTheme.colorScheme)
         .onAppear {
             synchronizeState()

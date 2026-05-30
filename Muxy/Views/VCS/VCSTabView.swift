@@ -39,7 +39,7 @@ struct VCSTabView: View {
             Rectangle().fill(MuxyTheme.border).frame(height: 1)
             content
         }
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .contentShape(Rectangle())
         .onTapGesture(perform: onFocus)
         .onAppear {
@@ -150,7 +150,7 @@ struct VCSTabView: View {
             }
         }
         .frame(height: UIMetrics.scaled(32))
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .sheet(isPresented: $showCreateBranchSheet) {
             CreateBranchSheet(
                 currentBranch: state.branchName,
@@ -582,7 +582,7 @@ struct VCSTabView: View {
             }
         }
         .padding(UIMetrics.spacing5)
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
     }
 
     private var aiCommitButton: some View {
@@ -1653,7 +1653,7 @@ private struct SectionSplitLayout: View {
             }
         }
         .frame(height: Self.sectionHeaderHeight)
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
     }
 
     private func sectionCount(for section: SectionKind) -> Int {
@@ -1890,7 +1890,7 @@ private struct FileRow: View {
         .padding(.leading, UIMetrics.spacing5 + CGFloat(depth) * UIMetrics.iconMD)
         .padding(.trailing, UIMetrics.spacing5)
         .frame(height: UIMetrics.scaled(34))
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .contentShape(Rectangle())
         .onHover { hovered = $0 }
         .onTapGesture(perform: onOpenDiff)
@@ -1950,7 +1950,7 @@ private struct FolderRow: View {
         .padding(.leading, UIMetrics.spacing5 + CGFloat(depth) * UIMetrics.iconMD)
         .padding(.trailing, UIMetrics.spacing5)
         .frame(height: UIMetrics.scaled(30))
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .contentShape(Rectangle())
         .onTapGesture(perform: onToggle)
     }

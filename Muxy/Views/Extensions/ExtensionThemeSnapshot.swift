@@ -6,7 +6,7 @@ enum ExtensionThemeSnapshot {
     static func current() -> [String: String] {
         var values: [String: String] = [:]
         let accentNS = NSColor(MuxyTheme.accent)
-        values["background"] = hex(MuxyTheme.nsBg)
+        values["background"] = hex(MuxyTheme.nsAppBackground)
         values["foreground"] = hex(MuxyTheme.nsFg)
         values["foregroundMuted"] = hex(MuxyTheme.nsFgMuted)
         values["surface"] = hex(MuxyTheme.nsFg, alpha: 0.08)

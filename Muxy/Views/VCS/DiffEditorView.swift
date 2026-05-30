@@ -59,7 +59,7 @@ struct SingleDiffEditorView: View {
                 }
             }
         }
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .onAppear(perform: syncDocument)
         .onChange(of: signature) { _, _ in syncDocument() }
         .onReceive(NotificationCenter.default.publisher(for: .themeDidChange)) { _ in

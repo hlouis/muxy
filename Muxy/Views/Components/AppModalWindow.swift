@@ -64,17 +64,22 @@ enum AppModalPresenter {
         }
         guard let parent = NSApp.keyWindow ?? NSApp.mainWindow else { return nil }
         let host = NSHostingController(
-            rootView: content()
-                .frame(width: config.size.width, height: config.size.height)
-                .preferredColorScheme(MuxyTheme.colorScheme)
-                .environment(ExtensionStore.shared)
-                .environment(ExtensionSettingsStore.shared)
+            rootView: ZStack {
+                AppWindowVibrancyBackground(
+                    enabled: AppTransparencyPreferences.isEnabled,
+                    intensity: AppTransparencyPreferences.intensity
+                )
+                content()
+            }
+            .frame(width: config.size.width, height: config.size.height)
+            .preferredColorScheme(AppTransparencyPreferences.preferredColorScheme())
+            .environment(ExtensionStore.shared)
+            .environment(ExtensionSettingsStore.shared)
         )
         let window = AppModalWindow(contentViewController: host)
         window.title = config.title
         window.styleMask = [.titled, .closable]
-        window.isOpaque = true
-        window.backgroundColor = MuxyTheme.nsBg
+        AppWindowBackgroundConfigurator.apply(to: window, enabled: AppTransparencyPreferences.isEnabled)
         window.delegate = config.delegate
         let onClosed = config.onClosed
         parent.beginSheet(window) { [weak window] _ in

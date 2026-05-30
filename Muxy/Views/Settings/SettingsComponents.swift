@@ -21,14 +21,15 @@ enum SettingsMetrics {
 }
 
 enum SettingsStyle {
-    @MainActor static var background: Color { MuxyTheme.bg }
+    @MainActor static var background: Color { MuxyTheme.appBackground }
     @MainActor static var foreground: Color { MuxyTheme.fg }
     @MainActor static var mutedForeground: Color { MuxyTheme.fgMuted }
     @MainActor static var dimForeground: Color { MuxyTheme.fgDim }
     @MainActor static var surface: Color { MuxyTheme.surface }
     @MainActor static var elevatedSurface: Color { MuxyTheme.surface.opacity(1.45) }
     @MainActor static var sidebarBackground: Color {
-        Color(nsColor: MuxyTheme.nsBg.blended(withFraction: 0.08, of: .black) ?? MuxyTheme.nsBg)
+        let background = MuxyTheme.nsBg.blended(withFraction: 0.08, of: .black) ?? MuxyTheme.nsBg
+        return Color(nsColor: AppTransparencyPreferences.nsBackgroundColor(background))
     }
 
     @MainActor static var hover: Color { MuxyTheme.hover }
@@ -38,7 +39,7 @@ enum SettingsStyle {
     @MainActor static var warning: Color { MuxyTheme.warning }
     @MainActor static var destructive: Color { MuxyTheme.diffRemoveFg }
     @MainActor static var destructiveSoft: Color { MuxyTheme.diffRemoveBg }
-    @MainActor static var nsBackground: NSColor { MuxyTheme.nsBg }
+    @MainActor static var nsBackground: NSColor { MuxyTheme.nsAppBackground }
     @MainActor static var nsForeground: NSColor { MuxyTheme.nsFg }
     @MainActor static var mutedNSForeground: NSColor { MuxyTheme.nsFgMuted }
 }

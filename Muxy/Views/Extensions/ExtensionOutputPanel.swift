@@ -16,7 +16,7 @@ struct ExtensionOutputPanel: View {
             logBody
         }
         .frame(maxWidth: .infinity)
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .overlay(
             Rectangle().fill(MuxyTheme.border).frame(height: 1),
             alignment: .top

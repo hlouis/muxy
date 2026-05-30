@@ -112,7 +112,7 @@ struct RemoteControlledPlaceholder: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
     }
 }
 

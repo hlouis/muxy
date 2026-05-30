@@ -6,8 +6,23 @@ struct EditorThemePalette {
     let accent: NSColor
     private let paletteColors: [Int: NSColor]
 
+    init(background: NSColor, foreground: NSColor, accent: NSColor, paletteColors: [Int: NSColor]) {
+        self.background = background
+        self.foreground = foreground
+        self.accent = accent
+        self.paletteColors = paletteColors
+    }
+
+    @MainActor
+    var paintedBackground: NSColor {
+        AppTransparencyPreferences.nsEditorBackgroundColor(background)
+    }
+
     @MainActor
     static var active: EditorThemePalette {
+        if let transparencyPalette = AppTransparencyPreferences.paletteIfNeeded() {
+            return transparencyPalette
+        }
         let service = GhosttyService.shared
         let preview = ThemeService.shared.activeThemePreview(for: ThemeService.shared.activeAppearance())
         return resolve(

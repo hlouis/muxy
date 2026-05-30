@@ -25,7 +25,7 @@ struct FindInFilesOverlay: View {
                 resultsList
             }
             .frame(width: UIMetrics.scaled(640), height: UIMetrics.scaled(460))
-            .background(MuxyTheme.bg)
+            .background(MuxyTheme.appBackground)
             .clipShape(RoundedRectangle(cornerRadius: UIMetrics.radiusXL))
             .overlay(RoundedRectangle(cornerRadius: UIMetrics.radiusXL).stroke(MuxyTheme.border, lineWidth: 1))
             .shadow(color: .black.opacity(0.4), radius: UIMetrics.scaled(20), y: UIMetrics.scaled(8))

@@ -120,6 +120,8 @@ struct MainWindow: View {
     @AppStorage("muxy.showStatusBar") private var showStatusBar = true
     @AppStorage("muxy.showExtensionOutput") private var showExtensionOutput = false
     @AppStorage("muxy.extensionOutputSelected") private var extensionOutputSelectedStored = ""
+    @AppStorage(AppTransparencyPreferences.enabledKey)
+    private var transparencyEnabled = AppTransparencyPreferences.defaultEnabled
     @State private var extensionOutputSelected: String?
     @AppStorage(SidebarCollapsedStyle.storageKey) private var sidebarCollapsedStyleRaw = SidebarCollapsedStyle.defaultValue.rawValue
     @AppStorage(SidebarExpandedStyle.storageKey) private var sidebarExpandedStyleRaw = SidebarExpandedStyle.defaultValue.rawValue
@@ -173,7 +175,7 @@ struct MainWindow: View {
                 .padding(.horizontal, UIMetrics.scaled(14))
                 .padding(.vertical, UIMetrics.spacing4)
                 .frame(maxWidth: UIMetrics.scaled(360), alignment: .leading)
-                .background(MuxyTheme.bg, in: Capsule())
+                .background(MuxyTheme.appBackground, in: Capsule())
                 .overlay(Capsule().stroke(MuxyTheme.border, lineWidth: 1))
                 .contentShape(Capsule())
                 .padding(toastEdgePadding)
@@ -208,7 +210,11 @@ struct MainWindow: View {
             onMouseBack: { appState.goBack() },
             onMouseForward: { appState.goForward() }
         ))
-        .background(WindowConfigurator(configVersion: ghostty.configVersion, uiScalePreset: UIScale.shared.preset))
+        .background(WindowConfigurator(
+            configVersion: ghostty.configVersion,
+            uiScalePreset: UIScale.shared.preset,
+            transparencyEnabled: transparencyEnabled
+        ))
         .background(WindowTitleUpdater(title: windowTitle))
         .ignoresSafeArea(.container, edges: .top)
         .onReceive(NotificationCenter.default.publisher(for: .quickOpen)) { _ in
@@ -317,7 +323,7 @@ struct MainWindow: View {
         }
         .frame(width: leftNavigationWidth, alignment: .leading)
         .clipped()
-        .background(MuxyTheme.bg)
+        .background(MuxyTheme.appBackground)
         .overlay(alignment: .trailing) {
             if leftNavigationWidth > 0, !sidebarIsResizable {
                 Rectangle().fill(MuxyTheme.border)
@@ -335,10 +341,10 @@ struct MainWindow: View {
             mainTitleBarContent
                 .frame(height: UIMetrics.titleBarHeight)
                 .background(WindowDragRepresentable())
-                .background(MuxyTheme.bg)
+                .background(MuxyTheme.appBackground)
 
             Rectangle().fill(MuxyTheme.border).frame(height: 1)
-                .background(MuxyTheme.bg)
+                .background(MuxyTheme.appBackground)
 
             workspaceContent
         }
@@ -365,7 +371,7 @@ struct MainWindow: View {
                 .frame(width: titleBarNavigationOverlayWidth, height: UIMetrics.titleBarHeight)
                 .fixedSize(horizontal: true, vertical: false)
                 .background(WindowDragRepresentable())
-                .background(MuxyTheme.bg)
+                .background(MuxyTheme.appBackground)
                 .overlay(alignment: .trailing) {
                     HStack(spacing: 0) {
                         navigationArrows
@@ -383,7 +389,7 @@ struct MainWindow: View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
                 ZStack {
-                    MuxyTheme.bg
+                    MuxyTheme.appBackground
                     if let project = activeProject,
                        appState.workspaceRoot(for: project.id) == nil,
                        let worktree = resolvedActiveWorktree(for: project)
@@ -1017,7 +1023,7 @@ struct MainWindow: View {
     private var floatingRichInputOverlay: some View {
         if isRichInputVisible(floating: true, at: .right) {
             richInputPanelContent(at: .right)
-                .background(MuxyTheme.bg)
+                .background(MuxyTheme.appBackground)
                 .transition(.move(edge: .trailing))
         }
     }
@@ -1033,7 +1039,7 @@ struct MainWindow: View {
     private var floatingBottomRichInputOverlay: some View {
         if isRichInputVisible(floating: true, at: .bottom) {
             richInputPanelContent(at: .bottom)
-                .background(MuxyTheme.bg)
+                .background(MuxyTheme.appBackground)
                 .transition(.move(edge: .bottom))
         }
     }

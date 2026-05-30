@@ -137,7 +137,7 @@ final class DiffGutterView: LineNumberGutterView {
     override func draw(_: NSRect) {
         guard let scrollView else { return }
         let scrollY = scrollView.contentView.bounds.origin.y
-        EditorThemePalette.active.background.setFill()
+        EditorThemePalette.active.paintedBackground.setFill()
         bounds.fill()
         if wrappingEnabled, heightMap != nil {
             drawWrapped(scrollY: scrollY)
@@ -252,7 +252,7 @@ final class DiffGutterView: LineNumberGutterView {
             EditorThemePalette.active.foreground.withAlphaComponent(0.08)
         case .context,
              .commentSpacer:
-            EditorThemePalette.active.background
+            EditorThemePalette.active.paintedBackground
         }
     }
 
