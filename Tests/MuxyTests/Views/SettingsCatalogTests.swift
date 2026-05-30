@@ -5,6 +5,15 @@ import Testing
 @Suite("SettingsCatalog")
 @MainActor
 struct SettingsCatalogTests {
+    private func makeDefaults() -> UserDefaults {
+        let suiteName = "SettingsRouteSelectionStoreTests-\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            fatalError("Unable to create isolated UserDefaults suite")
+        }
+        defaults.removePersistentDomain(forName: suiteName)
+        return defaults
+    }
+
     @Test
     func searchFindsSettingsByAliasAndDescription() {
         let results = SettingsCatalog.matchingItems(query: "hotkeys")
@@ -58,12 +67,7 @@ struct SettingsCatalogTests {
 
     @Test
     func selectedSettingsRoutePersists() throws {
-        let suiteName = "SettingsRouteSelectionStoreTests-\(UUID().uuidString)"
-        guard let defaults = UserDefaults(suiteName: suiteName) else {
-            Issue.record("Unable to create isolated UserDefaults suite")
-            return
-        }
-        defer { UserDefaults().removePersistentDomain(forName: suiteName) }
+        let defaults = makeDefaults()
 
         #expect(SettingsRouteSelectionStore.load(defaults: defaults) == .builtin(.general))
 
