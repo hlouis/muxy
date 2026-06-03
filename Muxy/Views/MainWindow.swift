@@ -30,6 +30,7 @@ struct MainWindow: View {
     @Environment(ProjectStore.self) private var projectStore
     @Environment(WorktreeStore.self) private var worktreeStore
     @Environment(ProjectGroupStore.self) private var projectGroupStore
+    @Environment(WorktreeAutoSync.self) private var worktreeAutoSync
     @Environment(GhosttyService.self) private var ghostty
     @State private var dragCoordinator = TabDragCoordinator()
     private enum CloseConfirmationKind {
@@ -214,6 +215,12 @@ struct MainWindow: View {
             onToggleRichInput: { toggleRichInputPanel() },
             onToggleVoiceRecording: { _ = openVoiceRecorder() }
         ))
+        .task {
+            worktreeAutoSync.sync(projects: projectStore.projects)
+        }
+        .onChange(of: projectWatchSignature) {
+            worktreeAutoSync.sync(projects: projectStore.projects)
+        }
         .onChange(of: worktreeKeysSignature) {
             pruneFileTreeStates()
         }
@@ -1318,6 +1325,10 @@ struct MainWindow: View {
             }
         }
         return keys
+    }
+
+    private var projectWatchSignature: [String] {
+        projectStore.projects.map { "\($0.id.uuidString):\($0.path)" }
     }
 
     private var worktreeKeysSignature: [String] {

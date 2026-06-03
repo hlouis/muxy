@@ -2,16 +2,30 @@ import CoreServices
 import Foundation
 
 final class FileSystemWatcher: @unchecked Sendable {
+    static let keepNonGitInternalEvents: @Sendable (_ path: String, _ isDirectory: Bool) -> Bool = { path, isDirectory in
+        let isGitInternal = path.contains("/.git/")
+        let isLockFile = path.hasSuffix(".lock")
+        if isGitInternal, isLockFile || isDirectory { return false }
+        return true
+    }
+
     private let queue = DispatchQueue(label: "app.muxy.fs-watcher", qos: .utility)
     private var stream: FSEventStreamRef?
     private var debounceWork: DispatchWorkItem?
     private var pendingPaths = Set<String>()
     private var handler: (@Sendable ([String]) -> Void)?
+    private let eventFilter: @Sendable (_ path: String, _ isDirectory: Bool) -> Bool
 
-    init?(directoryPath: String, handler: @escaping @Sendable ([String]) -> Void) {
+    init?(
+        directoryPath: String,
+        eventFilter: @escaping @Sendable (_ path: String, _ isDirectory: Bool) -> Bool = FileSystemWatcher
+            .keepNonGitInternalEvents,
+        handler: @escaping @Sendable ([String]) -> Void
+    ) {
         guard FileManager.default.fileExists(atPath: directoryPath) else { return nil }
 
         self.handler = handler
+        self.eventFilter = eventFilter
 
         var context = FSEventStreamContext()
         context.info = Unmanaged.passUnretained(self).toOpaque()
@@ -27,11 +41,8 @@ final class FileSystemWatcher: @unchecked Sendable {
                 let flags = Array(UnsafeBufferPointer(start: eventFlags, count: numEvents))
 
                 let relevant = zip(paths, flags).compactMap { path, flag -> String? in
-                    let isGitInternal = path.contains("/.git/")
-                    let isLockFile = path.hasSuffix(".lock")
                     let isDirectory = flag & UInt32(kFSEventStreamEventFlagItemIsDir) != 0
-                    if isGitInternal, isLockFile || isDirectory { return nil }
-                    return path
+                    return watcher.eventFilter(path, isDirectory) ? path : nil
                 }
                 guard !relevant.isEmpty else { return }
 

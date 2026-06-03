@@ -13,6 +13,7 @@ struct MuxyApp: App {
     @State private var projectStore: ProjectStore
     @State private var worktreeStore: WorktreeStore
     @State private var projectGroupStore: ProjectGroupStore
+    @State private var worktreeAutoSync: WorktreeAutoSync
     @State private var didStartDeferredServices = false
 
     init() {
@@ -36,10 +37,12 @@ struct MuxyApp: App {
         let projectGroupStore = ProjectGroupStore(
             persistence: environment.projectGroupPersistence
         )
+        let worktreeAutoSync = WorktreeAutoSync(worktreeStore: worktreeStore, appState: appState)
         _appState = State(initialValue: appState)
         _projectStore = State(initialValue: projectStore)
         _worktreeStore = State(initialValue: worktreeStore)
         _projectGroupStore = State(initialValue: projectGroupStore)
+        _worktreeAutoSync = State(initialValue: worktreeAutoSync)
     }
 
     var body: some Scene {
@@ -49,6 +52,7 @@ struct MuxyApp: App {
                 .environment(projectStore)
                 .environment(worktreeStore)
                 .environment(projectGroupStore)
+                .environment(worktreeAutoSync)
                 .environment(GhosttyService.shared)
                 .environment(MuxyConfig.shared)
                 .environment(ThemeService.shared)

@@ -57,6 +57,21 @@ actor GitWorktreeService: GitWorktreeListing {
         return result.status == 0 && result.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "true"
     }
 
+    func gitCommonDirectory(repoPath: String) async -> String? {
+        guard let result = try? await GitProcessRunner.runGit(
+            repoPath: repoPath,
+            arguments: ["rev-parse", "--path-format=absolute", "--git-common-dir"]
+        )
+        else {
+            return nil
+        }
+        guard result.status == 0 else { return nil }
+        let raw = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else { return nil }
+        if raw.hasPrefix("/") { return raw }
+        return URL(fileURLWithPath: repoPath).appendingPathComponent(raw).standardizedFileURL.path
+    }
+
     func hasUncommittedChanges(worktreePath: String) async -> Bool {
         guard let result = try? await GitProcessRunner.runGit(
             repoPath: worktreePath,
